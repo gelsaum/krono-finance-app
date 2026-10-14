@@ -4,6 +4,7 @@
    ========================================================================== */
 
 import { store } from './store.js';
+import { ratesEngine } from './rates.js';
 import { FastPadController } from './components/fastPad.js';
 import { VaultsView } from './components/vaultsView.js';
 import { DashboardView } from './components/dashboardView.js';
@@ -36,7 +37,12 @@ class App {
       this.refreshCurrentView();
     });
 
-    // 5. Initial Render
+    // 5. Subscribe to Live Exchange Rate updates
+    ratesEngine.subscribe(() => {
+      this.refreshCurrentView();
+    });
+
+    // 6. Initial Render
     this.refreshCurrentView();
   }
 

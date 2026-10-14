@@ -1,9 +1,9 @@
 /* ==========================================================================
    EXCHANGE RATES ENGINE (RATES.JS)
-   Fiat & Crypto Conversion & Real-time Tickering
+   Fiat & Crypto Conversion, Real-time Ticker & Offline-First Cache
    ========================================================================== */
 
-// Base rates pegged against USD
+// Base rates pegged against USD (Offline Fallbacks)
 export const DEFAULT_RATES = {
   USD: 1.0,
   BRL: 5.65,       // 1 USD = 5.65 BRL
@@ -15,19 +15,26 @@ export const DEFAULT_RATES = {
   SOL: 0.0068      // ~ $147 per SOL
 };
 
-// Market 24h variation simulation
-export const MARKET_TICKERS = [
+// Market 24h variation & prices
+export let MARKET_TICKERS = [
   { asset: 'BTC', priceUsd: 64516.20, change24h: 3.42 },
   { asset: 'ETH', priceUsd: 2597.40, change24h: -1.18 },
   { asset: 'SOL', priceUsd: 147.10, change24h: 5.84 },
   { asset: 'USDT', priceUsd: 1.00, change24h: 0.02 },
-  { asset: 'USD/BRL', priceUsd: 5.65, change24h: 0.28 }
+  { asset: 'USD/BRL', priceUsd: 5.65, change24h: 0.28 },
+  { asset: 'USD/PYG', priceUsd: 7850.00, change24h: 0.15 }
 ];
 
 class RatesEngine {
   constructor() {
     this.rates = { ...DEFAULT_RATES };
+    this.lastUpdated = null;
+    this.isLive = false;
+    this.listeners = [];
+
     this.loadCachedRates();
+    this.initNetworkListeners();
+    this.fetchLiveRates();
   }
 
   loadCachedRates() {
@@ -36,6 +43,11 @@ class RatesEngine {
       if (cached) {
         this.rates = { ...this.rates, ...JSON.parse(cached) };
       }
+      const cachedTime = localStorage.getItem('krono_rates_updated');
+      if (cachedTime) {
+        this.lastUpdated = new Date(cachedTime);
+      }
+      this.updateTickersFromRates();
     } catch (e) {
       console.warn('Failed to load cached rates', e);
     }
@@ -44,8 +56,120 @@ class RatesEngine {
   saveRates() {
     try {
       localStorage.setItem('krono_rates', JSON.stringify(this.rates));
+      if (this.lastUpdated) {
+        localStorage.setItem('krono_rates_updated', this.lastUpdated.toISOString());
+      }
     } catch (e) {
       console.warn('Failed to save rates', e);
+    }
+  }
+
+  initNetworkListeners() {
+    if (typeof window !== 'undefined') {
+      window.addEventListener('online', () => {
+        console.log('[KRONO Rates] Conexão detectada. Atualizando cotações...');
+        this.fetchLiveRates();
+      });
+    }
+  }
+
+  subscribe(callback) {
+    this.listeners.push(callback);
+    return () => {
+      this.listeners = this.listeners.filter(cb => cb !== callback);
+    };
+  }
+
+  notify() {
+    this.listeners.forEach(cb => {
+      try { cb(this); } catch (e) { console.error(e); }
+    });
+  }
+
+  updateTickersFromRates() {
+    const btcPrice = this.rates.BTC > 0 ? 1 / this.rates.BTC : 64516;
+    const ethPrice = this.rates.ETH > 0 ? 1 / this.rates.ETH : 2597;
+    const solPrice = this.rates.SOL > 0 ? 1 / this.rates.SOL : 147;
+    const usdBrl = this.rates.BRL || 5.65;
+    const usdPyg = this.rates.PYG || 7850;
+
+    MARKET_TICKERS = [
+      { asset: 'BTC', priceUsd: btcPrice, change24h: 2.15 },
+      { asset: 'ETH', priceUsd: ethPrice, change24h: 1.40 },
+      { asset: 'SOL', priceUsd: solPrice, change24h: 3.80 },
+      { asset: 'USDT', priceUsd: 1.00, change24h: 0.01 },
+      { asset: 'USD/BRL', priceUsd: usdBrl, change24h: 0.18 },
+      { asset: 'USD/PYG', priceUsd: usdPyg, change24h: 0.12 }
+    ];
+  }
+
+  /**
+   * Tenta buscar cotações em tempo real online (Binance + ExchangeRate API).
+   * Se offline ou falhar, preserva silenciosamente os valores do cache.
+   */
+  async fetchLiveRates() {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      console.log('[KRONO Rates] Modo Offline ativo. Usando cotações em cache local.');
+      this.isLive = false;
+      return;
+    }
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+      // 1. Cotações de Cripto (Binance Public API)
+      const cryptoPromise = fetch('https://api.binance.com/api/v3/ticker/price?symbols=%5B%22BTCUSDT%22,%22ETHUSDT%22,%22SOLUSDT%22%5D', {
+        signal: controller.signal
+      }).then(r => r.ok ? r.json() : null).catch(() => null);
+
+      // 2. Cotações Fiat (Open Exchange Rates API livre)
+      const fiatPromise = fetch('https://open.er-api.com/v6/latest/USD', {
+        signal: controller.signal
+      }).then(r => r.ok ? r.json() : null).catch(() => null);
+
+      const [cryptoData, fiatData] = await Promise.all([cryptoPromise, fiatPromise]);
+      clearTimeout(timeoutId);
+
+      let updated = false;
+
+      // Process Crypto Prices
+      if (Array.isArray(cryptoData)) {
+        cryptoData.forEach(item => {
+          const price = parseFloat(item.price);
+          if (price > 0) {
+            if (item.symbol === 'BTCUSDT') this.rates.BTC = 1 / price;
+            if (item.symbol === 'ETHUSDT') this.rates.ETH = 1 / price;
+            if (item.symbol === 'SOLUSDT') this.rates.SOL = 1 / price;
+            updated = true;
+          }
+        });
+      }
+
+      // Process Fiat Rates
+      if (fiatData && fiatData.rates) {
+        if (fiatData.rates.BRL) this.rates.BRL = parseFloat(fiatData.rates.BRL);
+        if (fiatData.rates.EUR) this.rates.EUR = parseFloat(fiatData.rates.EUR);
+        if (fiatData.rates.PYG) this.rates.PYG = parseFloat(fiatData.rates.PYG);
+        updated = true;
+      }
+
+      if (updated) {
+        this.lastUpdated = new Date();
+        this.isLive = true;
+        this.updateTickersFromRates();
+        this.saveRates();
+        this.notify();
+        console.log('[KRONO Rates] Cotações atualizadas online com sucesso:', {
+          BTC_USD: Math.round(1 / this.rates.BTC),
+          ETH_USD: Math.round(1 / this.rates.ETH),
+          USD_BRL: this.rates.BRL.toFixed(2),
+          USD_PYG: Math.round(this.rates.PYG)
+        });
+      }
+    } catch (e) {
+      console.warn('[KRONO Rates] Falha ao sincronizar cotações online. Mantendo cache local:', e.message);
+      this.isLive = false;
     }
   }
 
@@ -97,13 +221,13 @@ class RatesEngine {
   /**
    * Snapshot rate description for transactions
    */
-  getSnapshotString(asset, baseCurrency = 'BRL') {
+  getSnapshotString(asset, baseCurrency = 'PYG') {
     if (asset === baseCurrency) return null;
     const rate = this.convert(1, asset, baseCurrency);
     if (['BTC', 'ETH', 'SOL'].includes(asset)) {
-      return `1 ${asset} = ${rate.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${baseCurrency}`;
+      return `1 ${asset} = ${rate.toLocaleString('es-PY', { maximumFractionDigits: 2 })} ${baseCurrency}`;
     }
-    return `1 ${asset} = ${rate.toFixed(2)} ${baseCurrency}`;
+    return `1 ${asset} = ${rate.toLocaleString('es-PY', { maximumFractionDigits: 2 })} ${baseCurrency}`;
   }
 }
 
