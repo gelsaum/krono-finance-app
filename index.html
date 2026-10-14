@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#07090e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>KRONO | App Financeiro Zero-Friction (Fiat + Cripto)</title>
+  
+  <!-- Modern Typography (Plus Jakarta Sans & JetBrains Mono) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Modular CSS Design System -->
+  <link rel="stylesheet" href="./styles/main.css">
+  <link rel="stylesheet" href="./styles/fastpad.css">
+  <link rel="stylesheet" href="./styles/vaults.css">
+  <link rel="stylesheet" href="./styles/dashboard.css">
+  <link rel="stylesheet" href="./styles/timeline.css">
+  <link rel="stylesheet" href="./styles/modals.css">
+</head>
+<body>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Main Mobile-First Shell -->
+  <div class="app-container">
+    
+    <!-- Top Sticky Header -->
+    <header class="top-header">
+      <div class="brand-section">
+        <div class="brand-logo-icon">⚡</div>
+        <div>
+          <div class="brand-title">KRONO</div>
+        </div>
+        <span class="status-pill">
+          <span class="status-dot"></span>
+          <span>4ms Local</span>
+        </span>
+      </div>
+
+      <div class="header-actions">
+        <!-- Privacy Blur Mode Toggle -->
+        <button id="privacy-toggle-btn" class="icon-button" title="Modo Privacidade (Ocultar Saldos)" aria-label="Modo Privacidade">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+        <!-- Settings & Backup Trigger -->
+        <button id="settings-btn" class="icon-button" title="Backup & Configurações" aria-label="Configurações">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Dynamic Content Views -->
+    <main class="main-content">
+      
+      <!-- ========================================== -->
+      <!-- TAB 1: FAST PAD (DEFAULT INPUT-FIRST)       -->
+      <!-- ========================================== -->
+      <section id="tab-fastpad" class="tab-pane active">
+        <div class="fastpad-container">
+          
+          <!-- Transaction Type Switcher -->
+          <div class="tx-type-selector">
+            <button class="tx-type-btn active" data-type="EXPENSE">Despesa</button>
+            <button class="tx-type-btn" data-type="INCOME">Receita</button>
+            <button class="tx-type-btn" data-type="SWAP">Swap / Câmbio</button>
+          </div>
+
+          <!-- Smart Voice & NLP Command Input -->
+          <div class="ai-nlp-bar">
+            <div class="ai-icon-badge">IA</div>
+            <input type="text" id="ai-nlp-input" class="ai-nlp-input" placeholder="Digite ou fale: 'Almoço 45 mil guaranis banco Atlas'...">
+            <button id="mic-voice-btn" class="mic-voice-btn" title="Falar comando de voz">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+            </button>
+          </div>
+
+          <!-- Giant Visor Central -->
+          <div class="visor-card">
+            <div class="visor-value-row">
+              <span id="visor-amount-text" class="visor-amount active-expense sensitive-data">0</span>
+              <span class="visor-caret"></span>
+              <button id="visor-currency-btn" class="visor-currency-btn" title="Alterar Moeda">
+                <span id="visor-currency-label">PYG</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+            </div>
+            <div id="visor-sub-conversion" class="visor-sub-conversion hide"></div>
+          </div>
+
+          <!-- Quick Context Bar (Account, Note, Tags, Categories) -->
+          <div class="quick-context-bar">
+            <div class="context-row-top">
+              <button id="fastpad-account-pill" class="account-pill-btn">
+                <span class="account-badge-dot"></span>
+                <span id="fastpad-account-name">Banco Atlas (PYG)</span>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="note-input-wrapper">
+                <input type="text" id="fastpad-note-input" class="note-input" placeholder="Nota rápida ou descrição...">
+              </div>
+            </div>
+
+            <!-- Tag Chips -->
+            <div class="tag-chips-row">
+              <span class="tag-chip" data-tag="#almoço">#almoço</span>
+              <span class="tag-chip" data-tag="#uber">#uber</span>
+              <span class="tag-chip" data-tag="#mercado">#mercado</span>
+              <span class="tag-chip" data-tag="#viagem">#viagem</span>
+              <span class="tag-chip" data-tag="#combustivel">#combustível</span>
+              <span class="tag-chip" data-tag="#trabalho">#trabalho</span>
+            </div>
+
+            <!-- Category Carousel with Navigation Arrows -->
+            <div class="category-carousel-wrapper">
+              <button id="cat-scroll-left-btn" class="cat-nav-arrow" type="button" title="Rolar categorias para esquerda">‹</button>
+              <div id="category-carousel" class="category-carousel">
+                <!-- Dynamically populated categories -->
+              </div>
+              <button id="cat-scroll-right-btn" class="cat-nav-arrow" type="button" title="Rolar categorias para direita">›</button>
+            </div>
+          </div>
+
+          <!-- Custom Numeric Keypad -->
+          <div id="keypad-grid" class="keypad-grid">
+            <button class="keypad-btn" data-key="1">1</button>
+            <button class="keypad-btn" data-key="2">2</button>
+            <button class="keypad-btn" data-key="3">3</button>
+            <button class="keypad-btn" data-key="4">4</button>
+            <button class="keypad-btn" data-key="5">5</button>
+            <button class="keypad-btn" data-key="6">6</button>
+            <button class="keypad-btn" data-key="7">7</button>
+            <button class="keypad-btn" data-key="8">8</button>
+            <button class="keypad-btn" data-key="9">9</button>
+            <button class="keypad-btn key-action key-quarter key-triple-zero" data-key="000" title="Adicionar 3 Zeros (+000)">000</button>
+            <button class="keypad-btn key-quarter" data-key="0">0</button>
+            <button class="keypad-btn key-action key-quarter" data-key=".">.</button>
+            <button class="keypad-btn key-action key-quarter" data-key="BACKSPACE" title="Apagar">⌫</button>
+          </div>
+
+          <!-- Instant Submit Action -->
+          <button id="fastpad-submit-btn" class="submit-action-btn btn-expense">
+            <span>Registrar Lançamento</span>
+            <span class="speed-tag">&lt; 3s</span>
+          </button>
+
+        </div>
+      </section>
+
+      <!-- ========================================== -->
+      <!-- TAB 2: CARTEIRAS & BANCOS (VAULTS)         -->
+      <!-- ========================================== -->
+      <section id="tab-vaults" class="tab-pane">
+        <div class="vaults-container">
+          
+          <!-- Hero Portfolio Card with 1-Click Base Currency Toggle -->
+          <div class="vaults-hero-card">
+            <div class="vaults-hero-top">
+              <span class="hero-label">Patrimônio Líquido Total</span>
+              <div class="base-currency-toggle">
+                <button class="curr-toggle-btn active" data-curr="PYG">PYG</button>
+                <button class="curr-toggle-btn" data-curr="USD">USD</button>
+                <button class="curr-toggle-btn" data-curr="BRL">BRL</button>
+                <button class="curr-toggle-btn" data-curr="BTC">BTC</button>
+              </div>
+            </div>
+            <div id="vaults-hero-total" class="hero-total-balance sensitive-data">R$ 0,00</div>
+            <div class="hero-delta-row">
+              <span class="hero-delta-badge">▲ +4.12% este mês</span>
+              <span style="color: var(--text-muted); font-size: 0.72rem;">Multi-ativo fiat & cripto</span>
+            </div>
+          </div>
+
+          <!-- Switch de Liquidez (Hold vs Giro) -->
+          <div class="liquidity-switch-card">
+            <div class="liquidity-info">
+              <div class="liquidity-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              </div>
+              <div class="liquidity-text">
+                <h4>Switch de Liquidez</h4>
+                <p>Ocultar Cripto Cold Storage (Hold) do giro diário</p>
+              </div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="liquidity-toggle-input">
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <!-- Group 1: Contas Tradicionais (Fiat) -->
+          <div class="vault-group-section">
+            <div class="vault-group-header">
+              <div class="group-title">
+                <span>🏦 Contas Tradicionais</span>
+                <span class="group-badge">Fiat</span>
+                <button id="btn-quick-add-bank" class="btn-add-mini" style="font-size: 0.72rem; padding: 2px 8px; margin-left: 6px;">＋ Novo Banco</button>
+              </div>
+              <span id="fiat-group-total" class="group-total sensitive-data">R$ 0,00</span>
+            </div>
+            <div id="fiat-accounts-list" style="display: flex; flex-direction: column; gap: 8px;">
+              <!-- Dynamic Fiat Accounts -->
+            </div>
+          </div>
+
+          <!-- Group 2: Cripto Wallets & Exchanges -->
+          <div class="vault-group-section">
+            <div class="vault-group-header">
+              <div class="group-title">
+                <span>🪙 Cripto Wallets & Custódia</span>
+                <span class="group-badge">Web3</span>
+              </div>
+              <span id="crypto-group-total" class="group-total sensitive-data">R$ 0,00</span>
+            </div>
+            <div id="crypto-accounts-list" style="display: flex; flex-direction: column; gap: 8px;">
+              <!-- Dynamic Crypto Accounts -->
+            </div>
+          </div>
+
+          <!-- Group 3: Cartões de Crédito -->
+          <div class="vault-group-section">
+            <div class="vault-group-header">
+              <div class="group-title">
+                <span>💳 Cartões de Crédito</span>
+                <span class="group-badge">Faturas</span>
+              </div>
+              <span id="credit-group-total" class="group-total sensitive-data text-rose">R$ 0,00</span>
+            </div>
+            <div id="credit-accounts-list" style="display: flex; flex-direction: column; gap: 8px;">
+              <!-- Dynamic Credit Cards -->
+            </div>
+          </div>
+
+          <!-- Add Account Action -->
+          <button id="add-account-btn" class="add-account-btn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span>Nova Conta, Carteira ou Cartão</span>
+          </button>
+
+        </div>
+      </section>
+
+      <!-- ========================================== -->
+      <!-- TAB 3: DASHBOARD & SAFE-TO-SPEND           -->
+      <!-- ========================================== -->
+      <section id="tab-dashboard" class="tab-pane">
+        <div class="dashboard-container">
+          
+          <!-- Card Principal: Safe-to-Spend -->
+          <div class="safe-spend-hero">
+            <div class="safe-spend-badge">🛡️ Safe-to-Spend (Saldo Livre Real)</div>
+            <div id="safe-spend-amount-val" class="safe-spend-amount sensitive-data">R$ 0,00</div>
+            <div class="safe-spend-formula-caption">
+              <span>(Fiat + Cripto Giro) - Despesas Fixas Pendentes</span>
+            </div>
+
+            <!-- Formula Breakdown -->
+            <div class="safe-spend-breakdown-row">
+              <div class="breakdown-item">
+                <span class="breakdown-label">Saldo Fiat</span>
+                <span id="safe-spend-breakdown-fiat" class="breakdown-val sensitive-data">R$ 0,00</span>
+              </div>
+              <div class="breakdown-item">
+                <span class="breakdown-label">Stablecoins Giro</span>
+                <span id="safe-spend-breakdown-stable" class="breakdown-val sensitive-data">R$ 0,00</span>
+              </div>
+              <div class="breakdown-item" id="manage-fixed-hero-btn" style="cursor: pointer;" title="Clique para gerenciar despesas fixas">
+                <span class="breakdown-label">Fixos do Mês ⚙️</span>
+                <span id="safe-spend-breakdown-fixed" class="breakdown-val val-minus sensitive-data">-Gs. 0</span>
+              </div>
+            </div>
+
+            <!-- Daily Safe Allowance -->
+            <div class="daily-allowance-bar">
+              <span class="daily-allowance-title">Limite seguro sugerido:</span>
+              <span id="daily-allowance-val" class="daily-allowance-figure sensitive-data">R$ 0,00/dia</span>
+            </div>
+          </div>
+
+          <!-- Monthly Metrics Grid (Entradas vs Saídas & Taxa de Poupança) -->
+          <div class="metrics-grid">
+            <div class="metric-card">
+              <div class="metric-header">
+                <span class="metric-label">Entradas Mês</span>
+                <div class="metric-icon income">▲</div>
+              </div>
+              <div id="metric-income-val" class="metric-value text-emerald sensitive-data">Gs. 0</div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-header">
+                <span class="metric-label">Saídas Mês</span>
+                <div class="metric-icon expense">▼</div>
+              </div>
+              <div id="metric-expense-val" class="metric-value text-rose sensitive-data">Gs. 0</div>
+            </div>
+
+            <div class="metric-card" style="grid-column: span 2;">
+              <div class="metric-header">
+                <span class="metric-label">Taxa de Poupança (Savings Rate)</span>
+                <div class="metric-icon rate">⚡</div>
+              </div>
+              <div style="display: flex; align-items: baseline; justify-content: space-between;">
+                <div id="metric-savings-val" class="metric-value text-cyan">0%</div>
+                <span class="savings-rate-badge">Meta saudável: &gt; 25%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section: Despesas Fixas do Mês -->
+          <div class="section-card">
+            <div class="fixed-expenses-header-row">
+              <div class="section-title">
+                <span>📌 Despesas Fixas do Mês</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span id="fixed-expenses-summary-pill" class="fixed-expenses-summary-pill">Pendente: Gs. 0</span>
+                <button id="btn-add-fixed-expense" class="btn-add-mini">＋ Nova Fixa</button>
+              </div>
+            </div>
+            <div id="dashboard-fixed-expenses-list" class="fixed-expenses-list">
+              <!-- Dynamically populated fixed expenses -->
+            </div>
+          </div>
+
+          <!-- Top 5 Categories Progress Bars -->
+          <div class="section-card">
+            <div class="section-header-row">
+              <div class="section-title">
+                <span>📊 Top 5 Categorias de Gasto</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <button id="manage-categories-btn" class="btn-add-mini">📂 Gerenciar Categorias</button>
+              </div>
+            </div>
+            <div id="dashboard-categories-list" class="categories-progress-list">
+              <!-- Dynamically populated progress bars -->
+            </div>
+          </div>
+
+          <!-- Live Market Rates Ticker -->
+          <div class="market-ticker-section">
+            <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); padding-left: 2px;">
+              Cotações de Mercado em Tempo Real
+            </div>
+            <div id="market-ticker-row" class="ticker-scroll-row">
+              <!-- Dynamically populated tickers -->
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ========================================== -->
+      <!-- TAB 4: EXTRATO (TIMELINE)                  -->
+      <!-- ========================================== -->
+      <section id="tab-timeline" class="tab-pane">
+        <div class="timeline-container">
+          
+          <!-- Search Box -->
+          <div class="timeline-search-box">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="timeline-search-input" class="timeline-search-input" placeholder="Buscar por descrição, conta, categoria ou #tag...">
+          </div>
+
+          <!-- Filter Chips -->
+          <div class="filter-tabs-row">
+            <button class="filter-chip active" data-filter="ALL">Todos</button>
+            <button class="filter-chip" data-filter="EXPENSE">Despesas</button>
+            <button class="filter-chip" data-filter="INCOME">Receitas</button>
+            <button class="filter-chip" data-filter="SWAP">Swaps</button>
+          </div>
+
+          <!-- Grouped Transactions List -->
+          <div id="timeline-groups-list" class="timeline-list">
+            <!-- Dynamically populated timeline items -->
+          </div>
+
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Bottom Navigation Bar -->
+    <nav class="bottom-nav">
+      <button class="nav-item active fastpad-highlight" data-tab="fastpad">
+        <span class="nav-badge"></span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+        <span>Fast Pad</span>
+      </button>
+
+      <button class="nav-item" data-tab="vaults">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+        <span>Carteiras</span>
+      </button>
+
+      <button class="nav-item" data-tab="dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <span>Safe-Spend</span>
+      </button>
+
+      <button class="nav-item" data-tab="timeline">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
+        <span>Extrato</span>
+      </button>
+    </nav>
+
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL BOTTOM SHEETS & OVERLAYS             -->
+  <!-- ========================================== -->
+  <div id="modal-backdrop" class="modal-backdrop">
+    
+    <!-- 1. Account Picker Sheet -->
+    <div id="account-picker-sheet" class="bottom-sheet hide">
+      <div class="sheet-drag-handle"></div>
+      <div class="sheet-header">
+        <h3 class="sheet-title">Selecionar Conta / Carteira</h3>
+        <button class="sheet-close-btn">&times;</button>
+      </div>
+      <div id="account-picker-list" class="picker-grid"></div>
+    </div>
+
+    <!-- 2. Currency Picker Sheet -->
+    <div id="currency-picker-sheet" class="bottom-sheet hide">
+      <div class="sheet-drag-handle"></div>
+      <div class="sheet-header">
+        <h3 class="sheet-title">Selecionar Moeda / Ativo</h3>
+        <button class="sheet-close-btn">&times;</button>
+      </div>
+      <div id="currency-picker-list" class="picker-grid"></div>
+    </div>
+
+    <!-- 3. Add Account Sheet -->
+    <div id="add-account-sheet" class="bottom-sheet hide">
+      <div class="sheet-drag-handle"></div>
+      <div class="sheet-header">
+        <h3 class="sheet-title">Nova Conta ou Carteira</h3>
+        <button class="sheet-close-btn">&times;</button>
+      </div>
+      <form id="add-account-form" style="display: flex; flex-direction: column; gap: 14px;">
+        <div class="form-group">
+          <label class="form-label">Nome da Conta / Instituição</label>
+          <input type="text" id="new-acc-name" class="form-input" placeholder="Ex: Inter, MetaMask, Wise, Carteira..." required>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Tipo de Custódia</label>
+            <select id="new-acc-type" class="form-select">
+              <option value="FIAT_BANK">Banco Tradicional</option>
+              <option value="CRYPTO_WALLET">Carteira Cripto / Exchange</option>
+              <option value="CREDIT_CARD">Cartão de Crédito</option>
+              <option value="CASH">Espécie / Dinheiro Vivo</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Moeda Principal</label>
+            <select id="new-acc-currency" class="form-select">
+              <option value="BRL">BRL (Real)</option>
+              <option value="USD">USD (Dólar)</option>
+              <option value="USDT">USDT (Tether)</option>
+              <option value="BTC">BTC (Bitcoin)</option>
+              <option value="ETH">ETH (Ethereum)</option>
+              <option value="PYG">PYG (Guarani)</option>
+              <option value="EUR">EUR (Euro)</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Saldo Inicial</label>
+          <input type="text" inputmode="numeric" id="new-acc-balance" class="form-input" placeholder="Ex: 1.500.000" value="0">
+        </div>
+        <div id="new-acc-limit-group" class="form-group hide">
+          <label class="form-label">Limite do Cartão</label>
+          <input type="text" inputmode="numeric" id="new-acc-limit" class="form-input" placeholder="Ex: 5.000.000" value="5.000.000">
+        </div>
+        <button type="submit" class="btn-primary" style="margin-top: 6px;">Criar Conta / Carteira</button>
+      </form>
+    </div>
+
+    <!-- 4. Swap / Transfer Sheet -->
+    <div id="swap-sheet" class="bottom-sheet hide">
+      <div class="sheet-drag-handle"></div>
+      <div class="sheet-header">
+        <h3 class="sheet-title">Swap & Conversão de Ativos</h3>
+        <button class="sheet-close-btn">&times;</button>
+      </div>
+      <form id="swap-modal-form" style="display: flex; flex-direction: column; gap: 14px;">
+        <div class="form-group">
+          <label class="form-label">Conta de Origem (Saída)</label>
+          <select id="swap-from-account" class="form-select"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Valor a Converter</label>
+          <input type="number" step="any" id="swap-from-amount" class="form-input" placeholder="0.00" required>
+        </div>
+
+        <div class="swap-route-arrow">↓</div>
+
+        <div class="form-group">
+          <label class="form-label">Conta de Destino (Entrada)</label>
+          <select id="swap-to-account" class="form-select"></select>
+        </div>
+
+        <div class="swap-preview-card">
+          <div style="display: flex; justify-content: space-between; font-size: 0.8rem;">
+            <span style="color: var(--text-muted);">Você recebe estimado:</span>
+            <span id="swap-to-amount-preview" style="font-family: var(--font-mono); font-weight: 700; color: var(--cyan-neon);">0.00</span>
+          </div>
+          <div id="swap-quote-label" class="swap-rate-quote">
+            <span>Cotação Instantânea (Sem Spread Fantasma)</span>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-primary" style="background: linear-gradient(135deg, #00d2ff, #6366f1);">
+          Confirmar Swap / Transferência
+        </button>
+      </form>
+    </div>
+
+    <!-- 5. Settings & Backup Sheet -->
+    <div id="settings-sheet" class="bottom-sheet hide">
+      <div class="sheet-drag-handle"></div>
+      <div class="sheet-header">
+        <h3 class="sheet-title">Configurações & Backup</h3>
+        <button class="sheet-close-btn">&times;</button>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 14px;">
+        <p style="font-size: 0.8rem; color: var(--text-muted);">
+          O KRONO funciona em modo <strong>Offline-First</strong> gravando seus lançamentos e carteiras com latência de 4ms no armazenamento local seguro do seu dispositivo.
+        </p>
+
+        <!-- Mobile Wi-Fi Testing Card -->
+        <div class="mobile-test-card">
+          <div style="font-weight: 800; font-size: 0.9rem; color: #fff; display: flex; align-items: center; gap: 8px;">
+            <span>📱 Testar no Smartphone (Wi-Fi Local)</span>
+          </div>
+          <p style="font-size: 0.75rem; color: var(--text-muted);">
+            Abra este endereço no navegador do seu celular (conectado ao mesmo Wi-Fi deste computador):
+          </p>
+          <div class="mobile-url-box">http://192.168.1.209:3000/</div>
+        </div>
+
+        <button id="open-categories-settings-btn" class="btn-secondary" style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+          📂 Gerenciar Categorias & Orçamentos
+        </button>
+
+        <button id="export-json-btn" class="btn-secondary" style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Exportar Backup Completo (JSON)
+        </button>
+
+        <label class="btn-secondary" style="display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Restaurar Backup (JSON)
+          <input type="file" id="import-json-input" accept=".json" style="display: none;">
+        </label>
+
+        <button id="reset-data-btn" class="btn-secondary" style="color: var(--rose-neon); border-color: rgba(255, 51, 102, 0.3);">
+          Restaurar Dados Padrão de Demonstração
+        </button>
+      </div>
+    </div>
+
+    <!-- 6. Add Fixed Expense Sheet -->
+    <div id="add-fixed-expense-sheet" class="bottom-sheet hide">
+      <div class="sheet-drag-handle"></div>
+      <div class="sheet-header">
+        <h3 class="sheet-title">Nova Despesa Fixa</h3>
+        <button class="sheet-close-btn">&times;</button>
+      </div>
+      <form id="add-fixed-expense-form" style="display: flex; flex-direction: column; gap: 14px;">
+        <div class="form-group">
+          <label class="form-label">Nome da Despesa Fixa</label>
+          <input type="text" id="new-fixed-name" class="form-input" placeholder="Ex: Aluguel, ANDE, Internet, Mensalidade..." required>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Valor</label>
+            <input type="text" inputmode="numeric" id="new-fixed-amount" class="form-input" placeholder="Ex: 2.500.000" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Moeda</label>
+            <select id="new-fixed-currency" class="form-select">
+              <option value="PYG" selected>PYG (Guarani)</option>
+              <option value="USD">USD (Dólar)</option>
+              <option value="BRL">BRL (Real)</option>
+              <option value="USDT">USDT</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Dia do Vencimento (1 a 31)</label>
+            <input type="number" id="new-fixed-due-day" class="form-input" min="1" max="31" value="10" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Categoria</label>
+            <select id="new-fixed-category" class="form-select"></select>
+          </div>
+        </div>
+        <button type="submit" class="btn-primary" style="margin-top: 6px;">Salvar Despesa Fixa</button>
+      </form>
+    </div>
+
+    <!-- 7. Category Manager Sheet -->
+    <div id="categories-sheet" class="bottom-sheet hide">
+      <div class="sheet-drag-handle"></div>
+      <div class="sheet-header">
+        <h3 class="sheet-title">Gestor de Categorias</h3>
+        <button class="sheet-close-btn">&times;</button>
+      </div>
+
+      <!-- Active categories list -->
+      <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Categorias Ativas</div>
+      <div id="categories-manage-list" class="categories-manage-list"></div>
+
+      <!-- Add Category Form -->
+      <form id="add-category-form" style="display: flex; flex-direction: column; gap: 12px; margin-top: 8px; border-top: 1px solid var(--border-subtle); padding-top: 14px;">
+        <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary);">＋ Criar Nova Categoria</div>
+        
+        <div class="form-group">
+          <label class="form-label">Nome da Categoria</label>
+          <input type="text" id="new-cat-name" class="form-input" placeholder="Ex: Faculdade, Pet, Viagem, Jogos..." required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Escolha um Ícone</label>
+          <input type="hidden" id="new-cat-icon" value="🍔">
+          <div id="category-emoji-picker" class="emoji-picker-grid">
+            <button type="button" class="emoji-btn active" data-emoji="🍔">🍔</button>
+            <button type="button" class="emoji-btn" data-emoji="🚗">🚗</button>
+            <button type="button" class="emoji-btn" data-emoji="🏠">🏠</button>
+            <button type="button" class="emoji-btn" data-emoji="🎉">🎉</button>
+            <button type="button" class="emoji-btn" data-emoji="💊">💊</button>
+            <button type="button" class="emoji-btn" data-emoji="⚡">⚡</button>
+            <button type="button" class="emoji-btn" data-emoji="🪙">🪙</button>
+            <button type="button" class="emoji-btn" data-emoji="💼">💼</button>
+            <button type="button" class="emoji-btn" data-emoji="🎓">🎓</button>
+            <button type="button" class="emoji-btn" data-emoji="🐶">🐶</button>
+            <button type="button" class="emoji-btn" data-emoji="🎮">🎮</button>
+            <button type="button" class="emoji-btn" data-emoji="✈️">✈️</button>
+            <button type="button" class="emoji-btn" data-emoji="🛒">🛒</button>
+            <button type="button" class="emoji-btn" data-emoji="🏋️">🏋️</button>
+            <button type="button" class="emoji-btn" data-emoji="📚">📚</button>
+            <button type="button" class="emoji-btn" data-emoji="🍕">🍕</button>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Orçamento Mensal (PYG)</label>
+            <input type="text" inputmode="numeric" id="new-cat-budget" class="form-input" placeholder="Ex: 1.000.000" value="1.000.000">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Cor do Indicador</label>
+            <select id="new-cat-color" class="form-select">
+              <option value="#00f296">Verde Esmeralda</option>
+              <option value="#00d2ff">Ciano Neon</option>
+              <option value="#ff3366">Rosa Neon</option>
+              <option value="#ffb800">Âmbar Dourado</option>
+              <option value="#a855f7">Roxo Elétrico</option>
+              <option value="#6366f1">Índigo</option>
+            </select>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-primary" style="margin-top: 4px;">Cadastrar Categoria</button>
+      </form>
+    </div>
+
+  </div>
+
+  <!-- Main JavaScript Bootstrap -->
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>

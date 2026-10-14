@@ -1,0 +1,462 @@
+/* ==========================================================================
+   DASHBOARD & SAFE-TO-SPEND STYLES (DASHBOARD.CSS)
+   ========================================================================== */
+
+.dashboard-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* 1. Card Principal: Safe-to-Spend (Quanto Posso Gastar Hoje) */
+.safe-spend-hero {
+  background: radial-gradient(circle at 80% 20%, rgba(0, 242, 150, 0.12) 0%, rgba(17, 24, 39, 0.95) 75%),
+              linear-gradient(135deg, #111827 0%, #0b0f19 100%);
+  border: 1px solid rgba(0, 242, 150, 0.25);
+  box-shadow: var(--shadow-lg), 0 0 25px rgba(0, 242, 150, 0.12);
+  border-radius: var(--radius-lg);
+  padding: 22px 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.safe-spend-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--emerald-neon);
+  background: rgba(0, 242, 150, 0.1);
+  border: 1px solid rgba(0, 242, 150, 0.25);
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  margin-bottom: 12px;
+}
+
+.safe-spend-amount {
+  font-family: var(--font-mono);
+  font-size: 2.6rem;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1.1;
+  text-shadow: 0 0 20px rgba(0, 242, 150, 0.25);
+}
+
+.safe-spend-formula-caption {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.safe-spend-breakdown-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.breakdown-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.breakdown-label {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.breakdown-val {
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-top: 2px;
+}
+
+.breakdown-val.val-minus {
+  color: var(--rose-neon);
+}
+
+/* Daily Safe Allowance indicator */
+.daily-allowance-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(0, 242, 150, 0.06);
+  border: 1px dashed rgba(0, 242, 150, 0.25);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  margin-top: 14px;
+}
+
+.daily-allowance-title {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.daily-allowance-figure {
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--emerald-neon);
+}
+
+/* 2. Monthly Summary Grid (Entradas vs Saídas & Savings Rate) */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.metric-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: var(--transition-fast);
+}
+
+.metric-card:hover {
+  border-color: var(--border-medium);
+  background: var(--bg-surface-elevated);
+}
+
+.metric-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.metric-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.metric-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+}
+
+.metric-icon.income {
+  background: rgba(0, 242, 150, 0.15);
+  color: var(--emerald-neon);
+}
+
+.metric-icon.expense {
+  background: rgba(255, 51, 102, 0.15);
+  color: var(--rose-neon);
+}
+
+.metric-icon.rate {
+  background: rgba(0, 210, 255, 0.15);
+  color: var(--cyan-neon);
+}
+
+.metric-value {
+  font-family: var(--font-mono);
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.savings-rate-badge {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--cyan-neon);
+}
+
+/* 3. Top 5 Categories Progress Bars */
+.section-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.section-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.section-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.categories-progress-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cat-progress-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.cat-info-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.8rem;
+}
+
+.cat-name-icon {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.cat-amounts-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cat-spent {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.cat-budget-limit {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.cat-bar-track {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.cat-bar-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.cat-bar-fill.normal {
+  background: linear-gradient(90deg, #6366f1, #00d2ff);
+}
+
+.cat-bar-fill.warning {
+  background: linear-gradient(90deg, #ffb800, #ff8c00);
+}
+
+.cat-bar-fill.danger {
+  background: linear-gradient(90deg, #ff3366, #ff0044);
+  box-shadow: 0 0 10px rgba(255, 51, 102, 0.5);
+}
+
+/* 4. Live Market Ticker */
+.market-ticker-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ticker-scroll-row {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+
+.ticker-scroll-row::-webkit-scrollbar {
+  display: none;
+}
+
+.ticker-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.ticker-asset {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+}
+
+.ticker-price {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.ticker-change {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.ticker-change.up {
+  color: var(--emerald-neon);
+}
+
+.ticker-change.down {
+  color: var(--rose-neon);
+}
+
+/* 5. Fixed Expenses Section */
+.fixed-expenses-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.fixed-expenses-summary-pill {
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  color: var(--amber-neon);
+  background: rgba(255, 184, 0, 0.1);
+  border: 1px solid rgba(255, 184, 0, 0.25);
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+}
+
+.fixed-expenses-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fixed-expense-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  transition: var(--transition-fast);
+}
+
+.fixed-expense-item:hover {
+  border-color: var(--border-medium);
+}
+
+.fixed-expense-item.is-paid {
+  opacity: 0.6;
+}
+
+.fixed-expense-item.is-paid .fixed-name {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.fixed-item-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.fixed-checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--emerald-neon);
+  cursor: pointer;
+}
+
+.fixed-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fixed-name {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.fixed-meta {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fixed-item-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.fixed-amount {
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.fixed-btn-delete svg {
+  pointer-events: none;
+}
+
+.btn-add-mini {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: rgba(0, 242, 150, 0.12);
+  color: var(--emerald-neon);
+  border: 1px solid rgba(0, 242, 150, 0.3);
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.btn-add-mini:hover {
+  background: rgba(0, 242, 150, 0.2);
+}
+

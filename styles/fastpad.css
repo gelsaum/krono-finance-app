@@ -1,0 +1,543 @@
+/* ==========================================================================
+   FAST PAD - INPUT-FIRST ZERO-FRICTION STYLES (FASTPAD.CSS)
+   ========================================================================== */
+
+.fastpad-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* 1. Transaction Type Selector */
+.tx-type-selector {
+  display: flex;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  padding: 4px;
+  gap: 4px;
+}
+
+.tx-type-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-family: var(--font-main);
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 8px 12px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.tx-type-btn:hover {
+  color: var(--text-secondary);
+}
+
+.tx-type-btn.active[data-type="EXPENSE"] {
+  background: rgba(255, 51, 102, 0.15);
+  color: var(--rose-neon);
+  box-shadow: 0 0 15px rgba(255, 51, 102, 0.2);
+  border: 1px solid rgba(255, 51, 102, 0.3);
+}
+
+.tx-type-btn.active[data-type="INCOME"] {
+  background: rgba(0, 242, 150, 0.15);
+  color: var(--emerald-neon);
+  box-shadow: 0 0 15px rgba(0, 242, 150, 0.2);
+  border: 1px solid rgba(0, 242, 150, 0.3);
+}
+
+.tx-type-btn.active[data-type="SWAP"] {
+  background: rgba(0, 210, 255, 0.15);
+  color: var(--cyan-neon);
+  box-shadow: 0 0 15px rgba(0, 210, 255, 0.2);
+  border: 1px solid rgba(0, 210, 255, 0.3);
+}
+
+/* 2. Natural Language / Voice AI Bar */
+.ai-nlp-bar {
+  display: flex;
+  align-items: center;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  padding: 6px 10px;
+  gap: 8px;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition-fast);
+}
+
+.ai-nlp-bar:focus-within {
+  border-color: rgba(99, 102, 241, 0.5);
+  box-shadow: 0 0 15px rgba(99, 102, 241, 0.2);
+}
+
+.ai-icon-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #6366f1, #a855f7);
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-xs);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.ai-nlp-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-family: var(--font-main);
+  font-size: 0.82rem;
+}
+
+.ai-nlp-input::placeholder {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.mic-voice-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.mic-voice-btn:hover {
+  background: rgba(99, 102, 241, 0.2);
+  color: #fff;
+}
+
+.mic-voice-btn.recording {
+  background: var(--rose-neon);
+  color: #fff;
+  box-shadow: 0 0 15px var(--rose-neon);
+  animation: pulse-mic 1s infinite alternate;
+}
+
+@keyframes pulse-mic {
+  from { transform: scale(1); }
+  to { transform: scale(1.1); }
+}
+
+/* 3. Visor Central - Giant Value & Currency Picker */
+.visor-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 10px;
+  min-height: 100px;
+  position: relative;
+}
+
+.visor-value-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.visor-currency-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-medium);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.95rem;
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.visor-currency-btn:hover {
+  border-color: var(--emerald-neon);
+  background: var(--bg-surface-elevated);
+}
+
+.visor-amount {
+  font-family: var(--font-mono);
+  font-size: 3rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  color: var(--text-primary);
+  line-height: 1;
+  display: inline-flex;
+  align-items: baseline;
+}
+
+.visor-amount.active-expense {
+  color: #fff;
+  text-shadow: 0 0 20px rgba(255, 51, 102, 0.3);
+}
+
+.visor-amount.active-income {
+  color: #fff;
+  text-shadow: 0 0 20px rgba(0, 242, 150, 0.3);
+}
+
+.visor-amount.active-swap {
+  color: #fff;
+  text-shadow: 0 0 20px rgba(0, 210, 255, 0.3);
+}
+
+.visor-caret {
+  display: inline-block;
+  width: 3px;
+  height: 2.4rem;
+  background-color: var(--emerald-neon);
+  margin-left: 4px;
+  animation: blinkCaret 1s infinite;
+  vertical-align: middle;
+}
+
+@keyframes blinkCaret {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.visor-sub-conversion {
+  font-size: 0.78rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 4. Quick Context Bar (Account, Note, Tags, Categories) */
+.quick-context-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.context-row-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.account-pill-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-medium);
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  white-space: nowrap;
+}
+
+.account-pill-btn:hover {
+  background: var(--bg-surface-elevated);
+  border-color: var(--border-active);
+}
+
+.account-badge-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--emerald-neon);
+  box-shadow: 0 0 6px var(--emerald-neon);
+}
+
+.note-input-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  padding: 4px 12px;
+}
+
+.note-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-family: var(--font-main);
+}
+
+.note-input::placeholder {
+  color: var(--text-dim);
+}
+
+/* Category Carousel */
+.category-carousel-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+  width: 100%;
+}
+
+.category-carousel {
+  flex: 1;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  padding: 6px 2px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+  -webkit-overflow-scrolling: touch;
+  cursor: grab;
+  user-select: none;
+}
+
+.category-carousel::-webkit-scrollbar {
+  height: 4px;
+}
+
+.category-carousel::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+}
+
+.category-carousel:active {
+  cursor: grabbing;
+}
+
+.cat-nav-arrow {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  width: 26px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: var(--transition-fast);
+  user-select: none;
+}
+
+.cat-nav-arrow:hover {
+  background: var(--bg-surface-elevated);
+  border-color: var(--emerald-neon);
+  color: var(--emerald-neon);
+  transform: scale(1.05);
+}
+
+.category-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.category-item:hover {
+  border-color: var(--border-medium);
+  color: var(--text-primary);
+}
+
+.category-item.active {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-color: var(--emerald-neon);
+  box-shadow: 0 0 10px rgba(0, 242, 150, 0.25);
+}
+
+.category-item .cat-icon {
+  font-size: 1rem;
+}
+
+/* Tag Chips */
+.tag-chips-row {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  cursor: grab;
+  user-select: none;
+}
+
+.tag-chips-row:active {
+  cursor: grabbing;
+}
+
+.tag-chips-row::-webkit-scrollbar {
+  display: none;
+}
+
+.tag-chip {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  padding: 2px 8px;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.tag-chip:hover {
+  color: var(--text-secondary);
+  border-color: var(--border-medium);
+}
+
+.tag-chip.active {
+  color: var(--cyan-neon);
+  background: rgba(0, 210, 255, 0.1);
+  border-color: rgba(0, 210, 255, 0.3);
+}
+
+/* 5. Custom Numeric Keypad */
+.keypad-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.keypad-btn {
+  grid-column: span 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 1.45rem;
+  font-weight: 600;
+  height: 52px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  user-select: none;
+}
+
+.keypad-btn.key-quarter {
+  grid-column: span 3;
+}
+
+.keypad-btn.key-triple-zero {
+  color: var(--cyan-neon);
+  font-weight: 800;
+  font-size: 1.15rem;
+  background: rgba(0, 210, 255, 0.08);
+  border-color: rgba(0, 210, 255, 0.25);
+}
+
+.keypad-btn.key-triple-zero:hover {
+  background: rgba(0, 210, 255, 0.16);
+  border-color: var(--cyan-neon);
+}
+
+.keypad-btn:active {
+  background: var(--bg-surface-elevated);
+  transform: scale(0.96);
+  border-color: var(--border-medium);
+}
+
+.keypad-btn.key-action {
+  color: var(--text-secondary);
+  font-size: 1.2rem;
+}
+
+.keypad-btn.key-action:hover {
+  color: var(--text-primary);
+}
+
+/* 6. Instant Submit Action Button */
+.submit-action-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: linear-gradient(135deg, #00f296 0%, #00d2ff 100%);
+  border: none;
+  color: #07090e;
+  font-family: var(--font-main);
+  font-size: 1rem;
+  font-weight: 800;
+  padding: 14px 20px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(0, 242, 150, 0.35);
+  transition: var(--transition-fast);
+}
+
+.submit-action-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 25px rgba(0, 242, 150, 0.5);
+}
+
+.submit-action-btn:active {
+  transform: translateY(0);
+}
+
+.submit-action-btn.btn-expense {
+  background: linear-gradient(135deg, #ff3366 0%, #ff6b8b 100%);
+  box-shadow: 0 4px 20px rgba(255, 51, 102, 0.35);
+  color: #fff;
+}
+
+.submit-action-btn.btn-swap {
+  background: linear-gradient(135deg, #00d2ff 0%, #6366f1 100%);
+  box-shadow: 0 4px 20px rgba(0, 210, 255, 0.35);
+  color: #fff;
+}
+
+.speed-tag {
+  font-size: 0.68rem;
+  font-weight: 800;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  letter-spacing: 0.05em;
+}

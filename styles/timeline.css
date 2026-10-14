@@ -1,0 +1,314 @@
+/* ==========================================================================
+   TIMELINE (EXTRATO) STYLES (TIMELINE.CSS)
+   ========================================================================== */
+
+.timeline-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Search & Filter Bar */
+.timeline-search-box {
+  display: flex;
+  align-items: center;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 8px 14px;
+  gap: 10px;
+  transition: var(--transition-fast);
+}
+
+.timeline-search-box:focus-within {
+  border-color: var(--border-medium);
+  background: var(--bg-surface-elevated);
+}
+
+.timeline-search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-family: var(--font-main);
+  font-size: 0.85rem;
+}
+
+.timeline-search-input::placeholder {
+  color: var(--text-muted);
+}
+
+/* Filter Tabs */
+.filter-tabs-row {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.filter-tabs-row::-webkit-scrollbar {
+  display: none;
+}
+
+.filter-chip {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  padding: 5px 12px;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--transition-fast);
+}
+
+.filter-chip:hover {
+  color: var(--text-secondary);
+}
+
+.filter-chip.active {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-color: var(--border-active);
+}
+
+/* Timeline Group List */
+.timeline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.timeline-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.group-date-header {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  padding-left: 4px;
+}
+
+/* Transaction Card Item */
+.tx-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  transition: var(--transition-fast);
+  position: relative;
+  overflow: hidden;
+}
+
+.tx-card:hover {
+  border-color: var(--border-medium);
+  background: var(--bg-surface-elevated);
+}
+
+.tx-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+}
+
+.tx-card[data-type="EXPENSE"]::before {
+  background: var(--rose-neon);
+}
+
+.tx-card[data-type="INCOME"]::before {
+  background: var(--emerald-neon);
+}
+
+.tx-card[data-type="SWAP"]::before {
+  background: var(--cyan-neon);
+}
+
+.tx-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tx-icon-box {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  background: rgba(255, 255, 255, 0.04);
+  flex-shrink: 0;
+}
+
+.tx-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tx-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tx-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.tx-tag-badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--cyan-neon);
+  background: rgba(0, 210, 255, 0.08);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.tx-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.tx-account-name {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* Snapshot Historical Rate Badge (Section 4 Architecture) */
+.tx-rate-snapshot-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(255, 184, 0, 0.1);
+  color: var(--amber-neon);
+  border: 1px solid rgba(255, 184, 0, 0.2);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-family: var(--font-mono);
+}
+
+.tx-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.tx-amount {
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.tx-amount.is-expense {
+  color: var(--rose-neon);
+}
+
+.tx-amount.is-income {
+  color: var(--emerald-neon);
+}
+
+.tx-amount.is-swap {
+  color: var(--cyan-neon);
+}
+
+.tx-base-val {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.tx-actions-hover {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  opacity: 0.85;
+  transition: opacity 0.2s;
+  z-index: 2;
+  margin-top: 2px;
+}
+
+.tx-card:hover .tx-actions-hover {
+  opacity: 1;
+}
+
+.tx-btn-mini {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition-fast);
+  user-select: none;
+}
+
+.tx-btn-mini * {
+  pointer-events: none;
+}
+
+.tx-btn-mini:hover,
+.tx-btn-mini:active {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.12);
+  transform: scale(1.08);
+}
+
+.tx-btn-mini.delete:hover,
+.tx-btn-mini.delete:active {
+  color: #fff;
+  background: var(--rose-neon);
+  border-color: var(--rose-neon);
+  box-shadow: 0 0 10px rgba(255, 51, 102, 0.4);
+}
+
+.tx-btn-mini.duplicate:hover,
+.tx-btn-mini.duplicate:active {
+  color: #fff;
+  background: var(--cyan-neon);
+  border-color: var(--cyan-neon);
+  box-shadow: 0 0 10px rgba(0, 210, 255, 0.4);
+}
+
+/* Empty state */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-muted);
+  gap: 10px;
+}
+
+.empty-state svg {
+  width: 42px;
+  height: 42px;
+  stroke: var(--text-dim);
+}
