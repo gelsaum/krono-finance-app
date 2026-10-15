@@ -65,6 +65,15 @@ export class DashboardView {
         this.app.openAddFixedExpenseModal();
       });
     }
+
+    // Refresh Rates button in Hero Card
+    const refreshHeroBtn = document.getElementById('refresh-rates-hero-btn');
+    if (refreshHeroBtn) {
+      refreshHeroBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.app.refreshRates(true);
+      });
+    }
   }
 
   render() {
@@ -115,6 +124,21 @@ export class DashboardView {
     const dailyAllowanceEl = document.getElementById('daily-allowance-val');
     if (dailyAllowanceEl) {
       dailyAllowanceEl.textContent = `${formatCurrency(dailyAllowance, baseCurr)}/dia (${daysRemaining}d)`;
+    }
+
+    // Refresh rates indicator in Hero Card
+    const refreshHeroBtn = document.getElementById('refresh-rates-hero-btn');
+    const heroIcon = refreshHeroBtn ? refreshHeroBtn.querySelector('.refresh-icon') : null;
+    const heroLabel = document.getElementById('refresh-rates-label');
+    if (refreshHeroBtn && ratesEngine.lastUpdated) {
+      const timeStr = ratesEngine.lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      refreshHeroBtn.title = `Última atualização: ${timeStr}. Clique para atualizar agora.`;
+    }
+    if (heroIcon) {
+      heroIcon.classList.toggle('spinning', ratesEngine.isFetching);
+    }
+    if (heroLabel) {
+      heroLabel.textContent = ratesEngine.isFetching ? 'Atualizando...' : 'Atualizar';
     }
 
     // 3. Calculate Monthly Summary (Entradas, Saídas, Savings Rate %)

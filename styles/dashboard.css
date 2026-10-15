@@ -20,6 +20,14 @@
   overflow: hidden;
 }
 
+.safe-spend-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
 .safe-spend-badge {
   display: inline-flex;
   align-items: center;
@@ -33,7 +41,36 @@
   border: 1px solid rgba(0, 242, 150, 0.25);
   padding: 4px 10px;
   border-radius: var(--radius-full);
-  margin-bottom: 12px;
+}
+
+.refresh-rates-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-secondary);
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  backdrop-filter: blur(8px);
+}
+
+.refresh-rates-pill-btn:hover {
+  background: rgba(0, 242, 150, 0.15);
+  border-color: rgba(0, 242, 150, 0.35);
+  color: #fff;
+}
+
+.refresh-rates-pill-btn:active {
+  transform: scale(0.96);
+}
+
+.refresh-rates-pill-btn .refresh-icon {
+  flex-shrink: 0;
 }
 
 .safe-spend-amount {

@@ -394,3 +394,173 @@ body.privacy-mode .tx-amount {
 .text-amber { color: var(--amber-neon); }
 .font-mono { font-family: var(--font-mono); }
 .hide { display: none !important; }
+
+/* Rates Refresh Animation & Icon Utility */
+@keyframes spinRates {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spinning {
+  animation: spinRates 0.85s linear infinite !important;
+  transform-origin: center center;
+}
+
+/* Settings Section Card */
+.settings-section-card {
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+}
+
+/* ========================================== */
+/* PIN LOCK SCREEN (MODERN GLASSMORPHIC UI)   */
+/* ========================================== */
+.lock-screen {
+  position: fixed;
+  inset: 0;
+  background: rgba(7, 9, 14, 0.96);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: fadeInLock 0.25s ease-out;
+}
+
+@keyframes fadeInLock {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.lock-card {
+  width: 100%;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.lock-brand-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #00f296 0%, #00d2ff 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: #07090e;
+  font-weight: 800;
+  box-shadow: 0 0 30px rgba(0, 242, 150, 0.4);
+  margin-bottom: 14px;
+}
+
+.lock-title {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.02em;
+}
+
+.lock-subtitle {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  margin-bottom: 22px;
+}
+
+.pin-dots-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 26px;
+}
+
+.pin-dot {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  background: transparent;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.pin-dot.filled {
+  background: var(--emerald-neon);
+  border-color: var(--emerald-neon);
+  box-shadow: 0 0 15px rgba(0, 242, 150, 0.6);
+  transform: scale(1.15);
+}
+
+.pin-keypad-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  width: 100%;
+  max-width: 270px;
+}
+
+.pin-key-btn {
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 1.35rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pin-key-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: scale(1.05);
+}
+
+.pin-key-btn:active {
+  background: rgba(0, 242, 150, 0.2);
+  border-color: var(--emerald-neon);
+  transform: scale(0.94);
+}
+
+.pin-key-empty {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.pin-key-backspace {
+  font-size: 1.1rem;
+  color: var(--text-muted);
+}
+
+.pin-key-backspace:hover {
+  color: var(--rose-neon);
+}
+
+.lock-error-msg {
+  color: var(--rose-neon);
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-top: 14px;
+  animation: shakeLock 0.4s ease-in-out;
+}
+
+@keyframes shakeLock {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-8px); }
+  40%, 80% { transform: translateX(8px); }
+}
+

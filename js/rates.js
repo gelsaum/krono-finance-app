@@ -28,11 +28,15 @@ export let MARKET_TICKERS = [
 class RatesEngine {
   constructor() {
     this.rates = { ...DEFAULT_RATES };
+    this.cryptoAssets = new Set(['BTC', 'ETH', 'SOL', 'USDT', 'BNB', 'ADA', 'XRP', 'DOGE', 'AVAX', 'LINK', 'DOT', 'NEAR']);
+    this.customCryptoPrices = {};
     this.lastUpdated = null;
     this.isLive = false;
+    this.isFetching = false;
     this.listeners = [];
 
     this.loadCachedRates();
+    this.loadCustomCryptos();
     this.initNetworkListeners();
     this.fetchLiveRates();
   }
@@ -53,6 +57,66 @@ class RatesEngine {
     }
   }
 
+  loadCustomCryptos() {
+    try {
+      const stored = localStorage.getItem('krono_custom_cryptos');
+      if (stored) {
+        const list = JSON.parse(stored);
+        if (Array.isArray(list)) {
+          list.forEach(c => {
+            if (c.symbol) {
+              const sym = c.symbol.toUpperCase().trim();
+              this.cryptoAssets.add(sym);
+              if (c.priceUsd && c.priceUsd > 0 && !this.rates[sym]) {
+                this.rates[sym] = 1 / c.priceUsd;
+                this.customCryptoPrices[sym] = c.priceUsd;
+              }
+            }
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load custom cryptos', e);
+    }
+  }
+
+  registerCryptoAsset(symbol, priceUsd = null) {
+    const sym = symbol.toUpperCase().trim();
+    if (!sym) return;
+    this.cryptoAssets.add(sym);
+    if (priceUsd && priceUsd > 0) {
+      this.rates[sym] = 1 / priceUsd;
+      this.customCryptoPrices[sym] = priceUsd;
+      this.saveRates();
+      this.notify();
+    } else if (!this.rates[sym]) {
+      this.rates[sym] = 1.0;
+    }
+  }
+
+  async fetchSingleCryptoPrice(symbol) {
+    const sym = symbol.toUpperCase().trim();
+    if (!sym) return null;
+    try {
+      const res = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${encodeURIComponent(sym + 'USDT')}`);
+      if (res.ok) {
+        const data = await res.json();
+        const price = parseFloat(data.price);
+        if (price > 0) {
+          this.rates[sym] = 1 / price;
+          this.customCryptoPrices[sym] = price;
+          this.cryptoAssets.add(sym);
+          this.saveRates();
+          this.notify();
+          return price;
+        }
+      }
+    } catch (e) {
+      console.warn(`Could not fetch price for ${sym}USDT from Binance:`, e);
+    }
+    return null;
+  }
+
   saveRates() {
     try {
       localStorage.setItem('krono_rates', JSON.stringify(this.rates));
@@ -68,7 +132,7 @@ class RatesEngine {
     if (typeof window !== 'undefined') {
       window.addEventListener('online', () => {
         console.log('[KRONO Rates] Conexão detectada. Atualizando cotações...');
-        this.fetchLiveRates();
+        this.fetchLiveRates({ force: true });
       });
     }
   }
@@ -105,21 +169,41 @@ class RatesEngine {
 
   /**
    * Tenta buscar cotações em tempo real online (Binance + ExchangeRate API).
-   * Se offline ou falhar, preserva silenciosamente os valores do cache.
    */
-  async fetchLiveRates() {
+  async fetchLiveRates(options = {}) {
+    const force = Boolean(options.force);
+    const now = Date.now();
+
+    if (this.isFetching) {
+      return false;
+    }
+
+    if (!force && this.lastUpdated && (now - this.lastUpdated.getTime() < 15000)) {
+      return false;
+    }
+
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       console.log('[KRONO Rates] Modo Offline ativo. Usando cotações em cache local.');
       this.isLive = false;
-      return;
+      this.notify();
+      return false;
     }
+
+    this.isFetching = true;
+    this.notify();
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const timeoutId = setTimeout(() => controller.abort(), 4500);
 
-      // 1. Cotações de Cripto (Binance Public API)
-      const cryptoPromise = fetch('https://api.binance.com/api/v3/ticker/price?symbols=%5B%22BTCUSDT%22,%22ETHUSDT%22,%22SOLUSDT%22%5D', {
+      // 1. Cotações de Cripto (Binance Public API - dinâmico para todos os símbolos registrados)
+      const symbolsToFetch = Array.from(this.cryptoAssets)
+        .filter(s => s !== 'USDT' && s !== 'USD')
+        .slice(0, 15)
+        .map(s => `"${s}USDT"`);
+
+      const symbolsParam = encodeURIComponent(`[${symbolsToFetch.join(',')}]`);
+      const cryptoPromise = fetch(`https://api.binance.com/api/v3/ticker/price?symbols=${symbolsParam}`, {
         signal: controller.signal
       }).then(r => r.ok ? r.json() : null).catch(() => null);
 
@@ -137,10 +221,10 @@ class RatesEngine {
       if (Array.isArray(cryptoData)) {
         cryptoData.forEach(item => {
           const price = parseFloat(item.price);
-          if (price > 0) {
-            if (item.symbol === 'BTCUSDT') this.rates.BTC = 1 / price;
-            if (item.symbol === 'ETHUSDT') this.rates.ETH = 1 / price;
-            if (item.symbol === 'SOLUSDT') this.rates.SOL = 1 / price;
+          if (price > 0 && item.symbol.endsWith('USDT')) {
+            const sym = item.symbol.replace('USDT', '');
+            this.rates[sym] = 1 / price;
+            this.customCryptoPrices[sym] = price;
             updated = true;
           }
         });
@@ -159,17 +243,16 @@ class RatesEngine {
         this.isLive = true;
         this.updateTickersFromRates();
         this.saveRates();
-        this.notify();
-        console.log('[KRONO Rates] Cotações atualizadas online com sucesso:', {
-          BTC_USD: Math.round(1 / this.rates.BTC),
-          ETH_USD: Math.round(1 / this.rates.ETH),
-          USD_BRL: this.rates.BRL.toFixed(2),
-          USD_PYG: Math.round(this.rates.PYG)
-        });
+        return true;
       }
+      return false;
     } catch (e) {
-      console.warn('[KRONO Rates] Falha ao sincronizar cotações online. Mantendo cache local:', e.message);
+      console.warn('[KRONO Rates] Falha ao sincronizar cotações online:', e.message);
       this.isLive = false;
+      return false;
+    } finally {
+      this.isFetching = false;
+      this.notify();
     }
   }
 
@@ -179,14 +262,13 @@ class RatesEngine {
    * @returns {number}
    */
   getAssetPriceInUSD(asset) {
-    if (asset === 'USD') return 1.0;
-    if (asset === 'USDT') return 1.0;
-    if (asset === 'BTC') return 1 / this.rates.BTC;
-    if (asset === 'ETH') return 1 / this.rates.ETH;
-    if (asset === 'SOL') return 1 / this.rates.SOL;
-    if (asset === 'BRL') return 1 / this.rates.BRL;
-    if (asset === 'EUR') return 1 / this.rates.EUR;
-    if (asset === 'PYG') return 1 / this.rates.PYG;
+    if (asset === 'USD' || asset === 'USDT') return 1.0;
+    if (asset === 'BRL') return 1 / (this.rates.BRL || 5.65);
+    if (asset === 'EUR') return 1 / (this.rates.EUR || 0.92);
+    if (asset === 'PYG') return 1 / (this.rates.PYG || 7850);
+    if (this.rates[asset] && this.rates[asset] > 0) {
+      return 1 / this.rates[asset];
+    }
     return 1.0;
   }
 
@@ -198,22 +280,22 @@ class RatesEngine {
    * @returns {number}
    */
   convert(amount, fromAsset, toAsset) {
-    if (fromAsset === toAsset) return Number(amount);
+    if (fromAsset === toAsset) return Number(amount) || 0;
     const num = Number(amount) || 0;
     
-    // Convert fromAsset to USD first
+    // 1. Convert fromAsset to USD
     const priceUsd = this.getAssetPriceInUSD(fromAsset);
     const amountInUSD = num * priceUsd;
 
-    // Convert from USD to toAsset
+    // 2. Convert from USD to toAsset
     if (toAsset === 'USD') return amountInUSD;
-    if (toAsset === 'USDT') return amountInUSD / this.rates.USDT;
-    if (toAsset === 'BRL') return amountInUSD * this.rates.BRL;
-    if (toAsset === 'EUR') return amountInUSD * this.rates.EUR;
-    if (toAsset === 'PYG') return amountInUSD * this.rates.PYG;
-    if (toAsset === 'BTC') return amountInUSD * this.rates.BTC;
-    if (toAsset === 'ETH') return amountInUSD * this.rates.ETH;
-    if (toAsset === 'SOL') return amountInUSD * this.rates.SOL;
+    if (toAsset === 'USDT') return amountInUSD / (this.rates.USDT || 1.0);
+    if (toAsset === 'BRL') return amountInUSD * (this.rates.BRL || 5.65);
+    if (toAsset === 'EUR') return amountInUSD * (this.rates.EUR || 0.92);
+    if (toAsset === 'PYG') return amountInUSD * (this.rates.PYG || 7850);
+    if (this.rates[toAsset] && this.rates[toAsset] > 0) {
+      return amountInUSD * this.rates[toAsset];
+    }
 
     return amountInUSD;
   }

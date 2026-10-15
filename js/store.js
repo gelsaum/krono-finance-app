@@ -117,6 +117,8 @@ export const SEED_ACCOUNTS = [
     include_in_daily_balance: true,
     invoice_amount: 1480.00,
     credit_limit: 15000.00,
+    due_day: 25,
+    closing_day: 18,
     due_date: '25/Out',
     balances: { BRL: -1480.00 }
   }
@@ -231,6 +233,14 @@ class Store {
       const catsJson = localStorage.getItem('krono_categories');
       const settingsJson = localStorage.getItem('krono_settings');
 
+      const customCurrenciesJson = localStorage.getItem('krono_custom_cryptos');
+      this.customCurrencies = customCurrenciesJson ? JSON.parse(customCurrenciesJson) : [
+        { symbol: 'BNB', name: 'Binance Coin', type: 'CRYPTO', priceUsd: 580 },
+        { symbol: 'ADA', name: 'Cardano', type: 'CRYPTO', priceUsd: 0.55 },
+        { symbol: 'XRP', name: 'Ripple', type: 'CRYPTO', priceUsd: 0.54 },
+        { symbol: 'DOGE', name: 'Dogecoin', type: 'CRYPTO', priceUsd: 0.12 }
+      ];
+
       this.accounts = accountsJson ? JSON.parse(accountsJson) : SEED_ACCOUNTS;
       this.transactions = txsJson ? JSON.parse(txsJson) : SEED_TRANSACTIONS;
       this.fixedExpenses = fixedJson ? JSON.parse(fixedJson) : SEED_FIXED_EXPENSES;
@@ -239,7 +249,9 @@ class Store {
       this.settings = settingsJson ? JSON.parse(settingsJson) : {
         baseCurrency: 'PYG',
         includeCryptoHold: false, // Switch de Liquidez (Hold vs Giro)
-        privacyMode: false
+        privacyMode: false,
+        authEnabled: false,
+        pinHash: null
       };
 
       // Ensure PYG is set as primary base currency as requested by the user
@@ -249,6 +261,12 @@ class Store {
       }
     } catch (e) {
       console.error('Error loading state from localStorage:', e);
+      this.customCurrencies = [
+        { symbol: 'BNB', name: 'Binance Coin', type: 'CRYPTO', priceUsd: 580 },
+        { symbol: 'ADA', name: 'Cardano', type: 'CRYPTO', priceUsd: 0.55 },
+        { symbol: 'XRP', name: 'Ripple', type: 'CRYPTO', priceUsd: 0.54 },
+        { symbol: 'DOGE', name: 'Dogecoin', type: 'CRYPTO', priceUsd: 0.12 }
+      ];
       this.accounts = SEED_ACCOUNTS;
       this.transactions = SEED_TRANSACTIONS;
       this.fixedExpenses = SEED_FIXED_EXPENSES;
@@ -256,9 +274,13 @@ class Store {
       this.settings = {
         baseCurrency: 'PYG',
         includeCryptoHold: false,
-        privacyMode: false
+        privacyMode: false,
+        authEnabled: false,
+        pinHash: null
       };
     }
+    // Reconciliar cartões de crédito com histórico de transações
+    this.reconcileCreditCards();
   }
 
   save() {
@@ -268,6 +290,7 @@ class Store {
       localStorage.setItem('krono_fixed_expenses', JSON.stringify(this.fixedExpenses));
       localStorage.setItem('krono_categories', JSON.stringify(this.categories));
       localStorage.setItem('krono_settings', JSON.stringify(this.settings));
+      localStorage.setItem('krono_custom_cryptos', JSON.stringify(this.customCurrencies));
     } catch (e) {
       console.error('Error saving state:', e);
     }
@@ -342,28 +365,88 @@ class Store {
     return copy;
   }
 
+  reconcileCreditCards() {
+    if (!this.accounts || !Array.isArray(this.accounts)) return;
+    this.accounts.forEach(acc => {
+      if (acc.type === 'CREDIT_CARD') {
+        const curr = acc.default_currency || 'BRL';
+        if (!acc.balances) acc.balances = {};
+
+        // Localiza transações vinculadas a este cartão
+        const cardTxs = (this.transactions || []).filter(
+          t => t.account_from_id === acc.id || t.account_to_id === acc.id
+        );
+
+        if (cardTxs.length > 0) {
+          let netDebt = 0;
+          cardTxs.forEach(tx => {
+            if (tx.account_from_id === acc.id && (tx.tx_type === 'EXPENSE' || tx.tx_type === 'SWAP')) {
+              netDebt += Number(tx.amount_from) || 0;
+            } else if (tx.account_to_id === acc.id && (tx.tx_type === 'INCOME' || tx.tx_type === 'SWAP')) {
+              netDebt -= Number(tx.amount_to) || 0;
+            }
+          });
+          const initial = Number(acc.initial_invoice) || 0;
+          const totalInvoice = Math.max(0, initial + netDebt);
+          acc.invoice_amount = totalInvoice;
+          acc.balances[curr] = -totalInvoice;
+        } else {
+          const bal = acc.balances[curr] || 0;
+          if (bal < 0) {
+            acc.invoice_amount = Math.abs(bal);
+          } else if (acc.invoice_amount > 0) {
+            acc.balances[curr] = -acc.invoice_amount;
+          } else {
+            acc.invoice_amount = 0;
+            acc.balances[curr] = 0;
+          }
+        }
+      }
+    });
+  }
+
+  syncAccountInvoice(acc) {
+    if (!acc || acc.type !== 'CREDIT_CARD') return;
+    const curr = acc.default_currency || 'BRL';
+    if (!acc.balances) acc.balances = {};
+    const bal = acc.balances[curr] || 0;
+    acc.invoice_amount = Math.max(0, -bal);
+  }
+
   applyBalanceChange(tx) {
     if (tx.tx_type === 'EXPENSE' && tx.account_from_id) {
       const acc = this.accounts.find(a => a.id === tx.account_from_id);
       if (acc && acc.balances) {
         acc.balances[tx.asset_from] = (acc.balances[tx.asset_from] || 0) - tx.amount_from;
+        if (acc.type === 'CREDIT_CARD') {
+          this.syncAccountInvoice(acc);
+        }
       }
     } else if (tx.tx_type === 'INCOME' && tx.account_to_id) {
       const acc = this.accounts.find(a => a.id === tx.account_to_id);
       if (acc && acc.balances) {
         acc.balances[tx.asset_to] = (acc.balances[tx.asset_to] || 0) + tx.amount_to;
+        if (acc.type === 'CREDIT_CARD') {
+          this.syncAccountInvoice(acc);
+        }
       }
     } else if (tx.tx_type === 'SWAP') {
       if (tx.account_from_id) {
         const fromAcc = this.accounts.find(a => a.id === tx.account_from_id);
         if (fromAcc && fromAcc.balances) {
           fromAcc.balances[tx.asset_from] = (fromAcc.balances[tx.asset_from] || 0) - tx.amount_from;
+          if (fromAcc.type === 'CREDIT_CARD') {
+            this.syncAccountInvoice(fromAcc);
+          }
         }
       }
       if (tx.account_to_id) {
         const toAcc = this.accounts.find(a => a.id === tx.account_to_id);
         if (toAcc && toAcc.balances) {
           toAcc.balances[tx.asset_to] = (toAcc.balances[tx.asset_to] || 0) + tx.amount_to;
+          if (toAcc.type === 'CREDIT_CARD') {
+            this.syncAccountInvoice(toAcc);
+          }
         }
       }
     }
@@ -374,23 +457,35 @@ class Store {
       const acc = this.accounts.find(a => a.id === tx.account_from_id);
       if (acc && acc.balances) {
         acc.balances[tx.asset_from] = (acc.balances[tx.asset_from] || 0) + tx.amount_from;
+        if (acc.type === 'CREDIT_CARD') {
+          this.syncAccountInvoice(acc);
+        }
       }
     } else if (tx.tx_type === 'INCOME' && tx.account_to_id) {
       const acc = this.accounts.find(a => a.id === tx.account_to_id);
       if (acc && acc.balances) {
         acc.balances[tx.asset_to] = (acc.balances[tx.asset_to] || 0) - tx.amount_to;
+        if (acc.type === 'CREDIT_CARD') {
+          this.syncAccountInvoice(acc);
+        }
       }
     } else if (tx.tx_type === 'SWAP') {
       if (tx.account_from_id) {
         const fromAcc = this.accounts.find(a => a.id === tx.account_from_id);
         if (fromAcc && fromAcc.balances) {
           fromAcc.balances[tx.asset_from] = (fromAcc.balances[tx.asset_from] || 0) + tx.amount_from;
+          if (fromAcc.type === 'CREDIT_CARD') {
+            this.syncAccountInvoice(fromAcc);
+          }
         }
       }
       if (tx.account_to_id) {
         const toAcc = this.accounts.find(a => a.id === tx.account_to_id);
         if (toAcc && toAcc.balances) {
           toAcc.balances[tx.asset_to] = (toAcc.balances[tx.asset_to] || 0) - tx.amount_to;
+          if (toAcc.type === 'CREDIT_CARD') {
+            this.syncAccountInvoice(toAcc);
+          }
         }
       }
     }
@@ -407,13 +502,68 @@ class Store {
       balances: { [accData.default_currency || 'BRL']: Number(accData.initial_balance) || 0 }
     };
     if (accData.type === 'CREDIT_CARD') {
-      newAcc.invoice_amount = 0;
-      newAcc.credit_limit = Number(accData.credit_limit) || 5000;
-      newAcc.due_date = '15/Próx';
+      const dueDay = parseInt(accData.due_day, 10) || 15;
+      const closingDay = parseInt(accData.closing_day, 10) || (dueDay > 7 ? dueDay - 7 : 28);
+      newAcc.credit_limit = Number(accData.credit_limit) || 5000000;
+      newAcc.due_day = dueDay;
+      newAcc.closing_day = closingDay;
+      newAcc.due_date = `Dia ${dueDay}`;
+      newAcc.initial_invoice = Number(accData.initial_balance) || 0;
+      newAcc.invoice_amount = newAcc.initial_invoice;
+      newAcc.balances = { [accData.default_currency || 'BRL']: -newAcc.invoice_amount };
     }
     this.accounts.push(newAcc);
     this.save();
     return newAcc;
+  }
+
+  // --- Currencies & Custom Cryptos API ---
+  getAvailableCurrencies(accountType = 'FIAT_BANK') {
+    if (accountType === 'CRYPTO_WALLET') {
+      const baseCryptos = [
+        { symbol: 'BTC', name: 'Bitcoin (BTC)' },
+        { symbol: 'ETH', name: 'Ethereum (ETH)' },
+        { symbol: 'SOL', name: 'Solana (SOL)' },
+        { symbol: 'USDT', name: 'Tether (USDT)' }
+      ];
+      const customList = this.customCurrencies.map(c => ({
+        symbol: c.symbol,
+        name: `${c.name || c.symbol} (${c.symbol})`
+      }));
+      return [...baseCryptos, ...customList];
+    }
+
+    // Default Fiat Currencies
+    return [
+      { symbol: 'PYG', name: 'Guarani (PYG)' },
+      { symbol: 'BRL', name: 'Real (BRL)' },
+      { symbol: 'USD', name: 'Dólar (USD)' },
+      { symbol: 'EUR', name: 'Euro (EUR)' }
+    ];
+  }
+
+  addCustomCurrency(crypto) {
+    const sym = (crypto.symbol || '').toUpperCase().trim();
+    if (!sym) return null;
+
+    const existing = this.customCurrencies.find(c => c.symbol === sym);
+    const priceUsd = Number(crypto.priceUsd) || 1.0;
+
+    if (existing) {
+      existing.name = crypto.name || existing.name;
+      existing.priceUsd = priceUsd;
+    } else {
+      this.customCurrencies.push({
+        symbol: sym,
+        name: crypto.name || sym,
+        type: 'CRYPTO',
+        priceUsd: priceUsd
+      });
+    }
+
+    ratesEngine.registerCryptoAsset(sym, priceUsd);
+    this.save();
+    return sym;
   }
 
   // --- Settings API ---
@@ -521,6 +671,57 @@ class Store {
     }, null, 2);
   }
 
+  clearAllData(initialCurrency = null) {
+    const curr = initialCurrency || this.settings.baseCurrency || 'PYG';
+    this.accounts = [
+      {
+        id: 'acc-main',
+        name: 'Carteira Principal',
+        type: 'FIAT_BANK',
+        default_currency: curr,
+        balances: { [curr]: 0 },
+        include_in_daily_balance: true
+      }
+    ];
+    this.transactions = [];
+    this.fixedExpenses = [];
+    this.save();
+    try {
+      localStorage.setItem('krono_clean_initialized', 'true');
+    } catch (e) {
+      console.warn(e);
+    }
+  }
+
+  async hashPin(pin) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(String(pin));
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  async setPin(pin) {
+    if (!pin) {
+      this.settings.pinHash = null;
+      this.settings.authEnabled = false;
+    } else {
+      this.settings.pinHash = await this.hashPin(pin);
+      this.settings.authEnabled = true;
+    }
+    this.save();
+  }
+
+  async verifyPin(pin) {
+    if (!this.settings.authEnabled || !this.settings.pinHash) return true;
+    const hash = await this.hashPin(pin);
+    return hash === this.settings.pinHash;
+  }
+
+  isAuthRequired() {
+    return Boolean(this.settings.authEnabled && this.settings.pinHash);
+  }
+
   importJSON(jsonString) {
     try {
       const data = JSON.parse(jsonString);
@@ -529,7 +730,7 @@ class Store {
         this.transactions = data.transactions;
         if (data.fixedExpenses) this.fixedExpenses = data.fixedExpenses;
         if (data.categories) this.categories = data.categories;
-        if (data.settings) this.settings = data.settings;
+        if (data.settings) this.settings = { ...this.settings, ...data.settings };
         this.save();
         return true;
       }

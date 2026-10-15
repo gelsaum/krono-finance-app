@@ -10,10 +10,36 @@ export const CURRENCY_SYMBOLS = {
   USDT: 'USDT',
   BTC: '₿',
   ETH: 'Ξ',
-  SOL: 'SOL'
+  SOL: 'SOL',
+  BNB: 'BNB',
+  ADA: 'ADA',
+  XRP: 'XRP',
+  DOGE: 'Ð',
+  AVAX: 'AVAX',
+  LINK: 'LINK',
+  DOT: 'DOT',
+  NEAR: 'NEAR'
 };
 
-export const CRYPTO_ASSETS = ['BTC', 'ETH', 'SOL', 'USDT'];
+export const CRYPTO_ASSETS = ['BTC', 'ETH', 'SOL', 'USDT', 'BNB', 'ADA', 'XRP', 'DOGE', 'AVAX', 'LINK', 'DOT', 'NEAR'];
+
+/**
+ * Robust number parser that accepts comma or dot for decimals
+ * e.g. "0,0058" -> 0.0058, "1.500.000,50" -> 1500000.5, "1500" -> 1500
+ */
+export function parseFlexibleNumber(val) {
+  if (val === null || val === undefined || val === '') return 0;
+  let str = String(val).trim();
+  if (str.includes(',') && str.includes('.')) {
+    // e.g. 1.500.000,50 -> remove dots, replace comma with dot
+    str = str.replace(/\./g, '').replace(',', '.');
+  } else if (str.includes(',')) {
+    // e.g. 0,0058 or 1500,50
+    str = str.replace(',', '.');
+  }
+  const num = parseFloat(str);
+  return isNaN(num) ? 0 : num;
+}
 
 /**
  * Format an amount in the specified asset / currency
@@ -31,20 +57,23 @@ export function formatCurrency(amount, asset = 'BRL', showSymbol = true) {
   if (asset === 'PYG') {
     // Guaranis usually don't use decimals
     formattedNum = Math.round(num).toLocaleString('es-PY');
-  } else if (['BTC', 'ETH', 'SOL'].includes(asset)) {
-    // Crypto 4-8 decimals
-    if (Math.abs(num) < 0.0001 && num !== 0) {
-      formattedNum = num.toFixed(8);
-    } else if (Math.abs(num) < 1) {
-      formattedNum = num.toFixed(6).replace(/\.?0+$/, '');
-    } else {
-      formattedNum = num.toFixed(4).replace(/\.?0+$/, '');
-    }
   } else if (asset === 'BRL') {
     formattedNum = num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  } else {
-    // USD, EUR, USDT
+  } else if (asset === 'USD' || asset === 'EUR' || asset === 'USDT') {
     formattedNum = num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  } else {
+    // Qualquer criptoativo (BTC, ETH, SOL, ADA, etc.)
+    if (num === 0) {
+      formattedNum = '0';
+    } else if (Math.abs(num) < 0.0001) {
+      formattedNum = num.toFixed(8).replace(/\.?0+$/, '');
+    } else if (Math.abs(num) < 1) {
+      formattedNum = num.toFixed(6).replace(/\.?0+$/, '');
+    } else if (Math.abs(num) < 100) {
+      formattedNum = num.toFixed(4).replace(/\.?0+$/, '');
+    } else {
+      formattedNum = num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+    }
   }
 
   return showSymbol ? `${sym} ${formattedNum}` : formattedNum;

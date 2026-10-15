@@ -100,6 +100,17 @@
   background: rgba(0, 242, 150, 0.12);
   color: var(--emerald-neon);
   font-family: var(--font-mono);
+  transition: all 0.2s ease;
+}
+
+.hero-delta-badge.negative {
+  background: rgba(255, 51, 102, 0.12);
+  color: var(--rose-neon);
+}
+
+.hero-delta-badge.neutral {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
 }
 
 /* Switch de Liquidez (Hold vs Giro) */

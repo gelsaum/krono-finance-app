@@ -22,6 +22,42 @@
   <link rel="stylesheet" href="./styles/modals.css">
 </head>
 <body>
+  <!-- ========================================== -->
+  <!-- PIN LOCK SCREEN / LOGIN OVERLAY            -->
+  <!-- ========================================== -->
+  <div id="lock-screen" class="lock-screen hide">
+    <div class="lock-card">
+      <div class="lock-brand-icon">⚡</div>
+      <h2 class="lock-title">KRONO Finance</h2>
+      <p id="lock-subtitle" class="lock-subtitle">Digite seu PIN de 4 dígitos para desbloquear</p>
+
+      <!-- PIN Indicator Dots -->
+      <div id="pin-dots-container" class="pin-dots-container">
+        <span class="pin-dot"></span>
+        <span class="pin-dot"></span>
+        <span class="pin-dot"></span>
+        <span class="pin-dot"></span>
+      </div>
+
+      <!-- Numeric keypad -->
+      <div id="pin-keypad-grid" class="pin-keypad-grid">
+        <button type="button" class="pin-key-btn" data-key="1">1</button>
+        <button type="button" class="pin-key-btn" data-key="2">2</button>
+        <button type="button" class="pin-key-btn" data-key="3">3</button>
+        <button type="button" class="pin-key-btn" data-key="4">4</button>
+        <button type="button" class="pin-key-btn" data-key="5">5</button>
+        <button type="button" class="pin-key-btn" data-key="6">6</button>
+        <button type="button" class="pin-key-btn" data-key="7">7</button>
+        <button type="button" class="pin-key-btn" data-key="8">8</button>
+        <button type="button" class="pin-key-btn" data-key="9">9</button>
+        <button type="button" class="pin-key-btn pin-key-empty" tabindex="-1"></button>
+        <button type="button" class="pin-key-btn" data-key="0">0</button>
+        <button type="button" class="pin-key-btn pin-key-backspace" data-key="BACKSPACE" title="Apagar">⌫</button>
+      </div>
+
+      <div id="lock-error-msg" class="lock-error-msg hide">PIN incorreto. Tente novamente.</div>
+    </div>
+  </div>
 
   <!-- Toast Notification Container -->
   <div id="toast-container" class="toast-container"></div>
@@ -43,6 +79,10 @@
       </div>
 
       <div class="header-actions">
+        <!-- Live Rates Refresh Trigger -->
+        <button id="refresh-rates-header-btn" class="icon-button" title="Atualizar Cotações Cripto & Moedas" aria-label="Atualizar Cotações">
+          <svg class="refresh-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+        </button>
         <!-- Privacy Blur Mode Toggle -->
         <button id="privacy-toggle-btn" class="icon-button" title="Modo Privacidade (Ocultar Saldos)" aria-label="Modo Privacidade">
           <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -170,8 +210,8 @@
             </div>
             <div id="vaults-hero-total" class="hero-total-balance sensitive-data">R$ 0,00</div>
             <div class="hero-delta-row">
-              <span class="hero-delta-badge">▲ +4.12% este mês</span>
-              <span style="color: var(--text-muted); font-size: 0.72rem;">Multi-ativo fiat & cripto</span>
+              <span id="vaults-hero-delta" class="hero-delta-badge neutral">● 0.0% este mês</span>
+              <span id="vaults-hero-delta-caption" style="color: var(--text-muted); font-size: 0.72rem;">Multi-ativo fiat & cripto</span>
             </div>
           </div>
 
@@ -252,7 +292,13 @@
           
           <!-- Card Principal: Safe-to-Spend -->
           <div class="safe-spend-hero">
-            <div class="safe-spend-badge">🛡️ Safe-to-Spend (Saldo Livre Real)</div>
+            <div class="safe-spend-top-row">
+              <div class="safe-spend-badge">🛡️ Safe-to-Spend (Saldo Livre Real)</div>
+              <button id="refresh-rates-hero-btn" class="refresh-rates-pill-btn" title="Atualizar cotações ao vivo" type="button">
+                <svg class="refresh-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                <span id="refresh-rates-label" class="refresh-label">Atualizar</span>
+              </button>
+            </div>
             <div id="safe-spend-amount-val" class="safe-spend-amount sensitive-data">R$ 0,00</div>
             <div class="safe-spend-formula-caption">
               <span>(Fiat + Cripto Giro) - Despesas Fixas Pendentes</span>
@@ -461,23 +507,68 @@
           <div class="form-group">
             <label class="form-label">Moeda Principal</label>
             <select id="new-acc-currency" class="form-select">
-              <option value="BRL">BRL (Real)</option>
-              <option value="USD">USD (Dólar)</option>
-              <option value="USDT">USDT (Tether)</option>
-              <option value="BTC">BTC (Bitcoin)</option>
-              <option value="ETH">ETH (Ethereum)</option>
-              <option value="PYG">PYG (Guarani)</option>
-              <option value="EUR">EUR (Euro)</option>
+              <!-- Populated dynamically based on account type -->
             </select>
           </div>
         </div>
-        <div class="form-group">
-          <label class="form-label">Saldo Inicial</label>
-          <input type="text" inputmode="numeric" id="new-acc-balance" class="form-input" placeholder="Ex: 1.500.000" value="0">
+
+        <!-- Custom Crypto In-line Creator Fields -->
+        <div id="new-crypto-custom-fields" class="form-subcard hide" style="background: rgba(255, 255, 255, 0.04); border: 1px dashed var(--emerald-neon); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 4px;">
+          <div style="font-size: 0.78rem; font-weight: 700; color: var(--emerald-neon); margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between;">
+            <span>🪙 Cadastrar Nova Criptomoeda</span>
+            <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: normal;">Online Binance Fetch</span>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Ticker / Símbolo</label>
+              <input type="text" id="custom-crypto-symbol" class="form-input" placeholder="Ex: ADA, NEAR, KAS" style="text-transform: uppercase;">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Nome da Moeda</label>
+              <input type="text" id="custom-crypto-name" class="form-input" placeholder="Ex: Cardano">
+            </div>
+          </div>
+          <div class="form-group" style="margin-top: 6px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <label class="form-label" style="margin-bottom: 0;">Preço em USD ($)</label>
+              <button type="button" id="btn-fetch-crypto-price" style="background: none; border: none; color: var(--cyan-neon); font-size: 0.74rem; font-weight: 600; cursor: pointer; text-decoration: underline;">
+                🔍 Buscar Preço na Binance
+              </button>
+            </div>
+            <input type="text" inputmode="decimal" id="custom-crypto-price" class="form-input" placeholder="Ex: 0.55">
+          </div>
         </div>
-        <div id="new-acc-limit-group" class="form-group hide">
-          <label class="form-label">Limite do Cartão</label>
-          <input type="text" inputmode="numeric" id="new-acc-limit" class="form-input" placeholder="Ex: 5.000.000" value="5.000.000">
+
+        <div class="form-group">
+          <label class="form-label" id="new-acc-balance-label">Saldo Inicial</label>
+          <input type="text" inputmode="decimal" id="new-acc-balance" class="form-input" placeholder="Ex: 0,0058 ou 1.500.000" value="0">
+          <span style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px; display: block;">
+            Aceita decimais com vírgula ou ponto (ex: <strong>0,0058</strong>).
+          </span>
+        </div>
+        <!-- Credit Card Specific Settings (Limit, Due Day, Closing Day) -->
+        <div id="new-acc-credit-card-fields" class="form-subcard hide" style="background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 6px;">
+          <div style="font-size: 0.78rem; font-weight: 700; color: #fff; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+            <span>💳 Ciclo da Fatura do Cartão</span>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 10px;">
+            <label class="form-label">Limite Total do Cartão</label>
+            <input type="text" inputmode="numeric" id="new-acc-limit" class="form-input" placeholder="Ex: 5.000.000" value="5.000.000">
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Dia do Vencimento</label>
+              <input type="number" id="new-acc-due-day" class="form-input" min="1" max="31" value="15" placeholder="Ex: 15">
+              <span style="font-size: 0.68rem; color: var(--text-muted); margin-top: 2px; display: block;">Dia que vence o boleto</span>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Dia de Fechamento</label>
+              <input type="number" id="new-acc-closing-day" class="form-input" min="1" max="31" value="8" placeholder="Ex: 8">
+              <span style="font-size: 0.68rem; color: var(--text-muted); margin-top: 2px; display: block;">Fecha o extrato mensal</span>
+            </div>
+          </div>
         </div>
         <button type="submit" class="btn-primary" style="margin-top: 6px;">Criar Conta / Carteira</button>
       </form>
@@ -546,6 +637,29 @@
           <div class="mobile-url-box">http://192.168.1.209:3000/</div>
         </div>
 
+        <!-- Security & PIN Lock Card -->
+        <div class="settings-section-card">
+          <div style="font-weight: 700; font-size: 0.85rem; color: #fff; display: flex; align-items: center; justify-content: space-between;">
+            <span style="display: flex; align-items: center; gap: 6px;">🔐 Proteção por PIN</span>
+            <span id="pin-status-badge" class="brand-badge">Desativado</span>
+          </div>
+          <p style="font-size: 0.74rem; color: var(--text-muted); margin-top: 4px;">
+            Exige PIN numérico para abrir o app no navegador e visualizar seus saldos e despesas.
+          </p>
+          <div style="display: flex; gap: 8px; margin-top: 8px;">
+            <button type="button" id="btn-config-pin" class="btn-primary" style="flex: 1; padding: 8px; font-size: 0.8rem;">
+              Configurar PIN
+            </button>
+            <button type="button" id="btn-lock-now" class="btn-secondary" style="padding: 8px 12px; font-size: 0.8rem;" title="Bloquear tela agora">
+              🔒 Bloquear
+            </button>
+          </div>
+        </div>
+
+        <button id="open-crypto-manager-btn" class="btn-secondary" style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+          🪙 Gerenciar Criptomoedas & Ativos
+        </button>
+
         <button id="open-categories-settings-btn" class="btn-secondary" style="display: flex; align-items: center; justify-content: center; gap: 8px;">
           📂 Gerenciar Categorias & Orçamentos
         </button>
@@ -561,10 +675,40 @@
           <input type="file" id="import-json-input" accept=".json" style="display: none;">
         </label>
 
-        <button id="reset-data-btn" class="btn-secondary" style="color: var(--rose-neon); border-color: rgba(255, 51, 102, 0.3);">
-          Restaurar Dados Padrão de Demonstração
-        </button>
+        <!-- Data Reset & Clean Start -->
+        <div style="border-top: 1px solid var(--border-subtle); padding-top: 12px; display: flex; flex-direction: column; gap: 8px;">
+          <button id="clear-all-data-btn" class="btn-primary" style="background: linear-gradient(135deg, #ff3366, #e11d48); font-size: 0.85rem; font-weight: 700; box-shadow: 0 4px 15px rgba(255, 51, 102, 0.35);">
+            🗑️ Limpar Tudo (Iniciar do Zero)
+          </button>
+          <button id="reset-data-btn" class="btn-secondary" style="color: var(--text-muted); font-size: 0.78rem;">
+            Restaurar Dados Padrão de Demonstração
+          </button>
+        </div>
       </div>
+    </div>
+
+    <!-- Set PIN Modal Sheet -->
+    <div id="set-pin-sheet" class="bottom-sheet hide">
+      <div class="sheet-drag-handle"></div>
+      <div class="sheet-header">
+        <h3 id="set-pin-title" class="sheet-title">Configurar PIN de Acesso</h3>
+        <button class="sheet-close-btn">&times;</button>
+      </div>
+      <form id="set-pin-form" style="display: flex; flex-direction: column; gap: 14px;">
+        <p style="font-size: 0.8rem; color: var(--text-muted);">
+          Defina um PIN de 4 dígitos. Toda vez que você abrir o app, ele solicitará esse código para desbloquear seus lançamentos.
+        </p>
+        <div class="form-group">
+          <label class="form-label">Novo PIN (4 dígitos numéricos)</label>
+          <input type="password" inputmode="numeric" id="new-pin-input" class="form-input" maxlength="4" placeholder="••••" required style="font-family: var(--font-mono); font-size: 1.4rem; letter-spacing: 0.4em; text-align: center;">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Confirme o Novo PIN</label>
+          <input type="password" inputmode="numeric" id="confirm-pin-input" class="form-input" maxlength="4" placeholder="••••" required style="font-family: var(--font-mono); font-size: 1.4rem; letter-spacing: 0.4em; text-align: center;">
+        </div>
+        <button type="submit" class="btn-primary">Salvar e Ativar PIN</button>
+        <button type="button" id="btn-remove-pin" class="btn-secondary hide" style="color: var(--rose-neon);">Desativar Proteção por PIN</button>
+      </form>
     </div>
 
     <!-- 6. Add Fixed Expense Sheet -->
@@ -672,6 +816,51 @@
 
         <button type="submit" class="btn-primary" style="margin-top: 4px;">Cadastrar Categoria</button>
       </form>
+    </div>
+
+    <!-- 8. Custom Cryptos Manager Sheet -->
+    <div id="custom-crypto-sheet" class="bottom-sheet hide">
+      <div class="sheet-drag-handle"></div>
+      <div class="sheet-header">
+        <h3 class="sheet-title">Criptomoedas & Ativos</h3>
+        <button class="sheet-close-btn">&times;</button>
+      </div>
+
+      <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">
+        Suas criptomoedas ativas para criação de carteiras, visualização de saldos e swaps.
+      </p>
+
+      <div id="custom-crypto-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 220px; overflow-y: auto; margin-bottom: 12px;">
+        <!-- Populated dynamically -->
+      </div>
+
+      <div style="border-top: 1px solid var(--border-subtle); padding-top: 14px;">
+        <div style="font-size: 0.85rem; font-weight: 700; color: #fff; margin-bottom: 10px;">
+          ＋ Cadastrar Outra Criptomoeda
+        </div>
+        <form id="standalone-add-crypto-form" style="display: flex; flex-direction: column; gap: 10px;">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Ticker / Símbolo</label>
+              <input type="text" id="standalone-crypto-symbol" class="form-input" placeholder="Ex: NEAR, AVAX, KAS" required style="text-transform: uppercase;">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Nome da Moeda</label>
+              <input type="text" id="standalone-crypto-name" class="form-input" placeholder="Ex: Near Protocol">
+            </div>
+          </div>
+          <div class="form-group">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <label class="form-label" style="margin-bottom: 0;">Preço em USD ($)</label>
+              <button type="button" id="standalone-btn-fetch" style="background: none; border: none; color: var(--cyan-neon); font-size: 0.74rem; font-weight: 600; cursor: pointer; text-decoration: underline;">
+                🔍 Buscar Preço na Binance
+              </button>
+            </div>
+            <input type="text" inputmode="decimal" id="standalone-crypto-price" class="form-input" placeholder="Ex: 5.20" required>
+          </div>
+          <button type="submit" class="btn-primary" style="margin-top: 4px;">Salvar Criptomoeda</button>
+        </form>
+      </div>
     </div>
 
   </div>

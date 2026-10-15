@@ -14,6 +14,8 @@ import { ModalsController } from './components/modals.js';
 class App {
   constructor() {
     this.currentTab = 'fastpad';
+    this.isLocked = false;
+    this.enteredPin = '';
     this.init();
   }
 
@@ -27,22 +29,28 @@ class App {
     this.dashboardView = new DashboardView(this);
     this.timelineView = new TimelineView(this);
 
-    // 3. Bind Global Navigation & Top Bar
+    // 3. Bind Global Navigation, Top Bar & Lock Screen
     this.bindNavigation();
     this.bindTopBar();
+    this.bindLockScreen();
     this.bindKeyboardShortcuts();
 
-    // 4. Subscribe to Store updates
+    // 4. Check if App is Protected by PIN
+    if (store.isAuthRequired()) {
+      this.lockApp();
+    }
+
+    // 5. Subscribe to Store updates
     store.subscribe(() => {
       this.refreshCurrentView();
     });
 
-    // 5. Subscribe to Live Exchange Rate updates
+    // 6. Subscribe to Live Exchange Rate updates
     ratesEngine.subscribe(() => {
       this.refreshCurrentView();
     });
 
-    // 6. Initial Render
+    // 7. Initial Render
     this.refreshCurrentView();
   }
 
@@ -74,7 +82,42 @@ class App {
       activePane.classList.add('active');
     }
 
+    // Toda vez que entrar em Safe-Spend (ou Carteiras), atualiza as cotações
+    if (tabId === 'dashboard') {
+      this.refreshRates(false);
+    }
+
     this.refreshCurrentView();
+  }
+
+  async refreshRates(manual = false) {
+    const headerBtn = document.getElementById('refresh-rates-header-btn');
+    const heroBtn = document.getElementById('refresh-rates-hero-btn');
+    const headerIcon = headerBtn ? headerBtn.querySelector('.refresh-icon') : null;
+    const heroIcon = heroBtn ? heroBtn.querySelector('.refresh-icon') : null;
+    const heroLabel = document.getElementById('refresh-rates-label');
+
+    if (headerIcon) headerIcon.classList.add('spinning');
+    if (heroIcon) heroIcon.classList.add('spinning');
+    if (heroLabel) heroLabel.textContent = 'Atualizando...';
+
+    const updated = await ratesEngine.fetchLiveRates({ force: manual });
+
+    if (headerIcon) headerIcon.classList.remove('spinning');
+    if (heroIcon) heroIcon.classList.remove('spinning');
+    if (heroLabel) heroLabel.textContent = 'Atualizar';
+
+    if (manual) {
+      if (updated) {
+        const btcUsd = Math.round(ratesEngine.getAssetPriceInUSD('BTC'));
+        const usdBrl = (ratesEngine.rates.BRL || 5.65).toFixed(2);
+        this.showToast(`Cotações sincronizadas! BTC: $${btcUsd.toLocaleString('en-US')} | USD/BRL: R$ ${usdBrl}`, 'info');
+      } else if (!navigator.onLine) {
+        this.showToast('Sem conexão com a internet. Usando cache local.', 'error');
+      } else {
+        this.showToast('Cotações já estão atualizadas.', 'info');
+      }
+    }
   }
 
   refreshCurrentView() {
@@ -90,6 +133,14 @@ class App {
   }
 
   bindTopBar() {
+    // Live Rates Refresh Button
+    const refreshBtn = document.getElementById('refresh-rates-header-btn');
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', () => {
+        this.refreshRates(true);
+      });
+    }
+
     // Privacy Mode (Eye toggle)
     const privacyBtn = document.getElementById('privacy-toggle-btn');
     if (privacyBtn) {
@@ -110,8 +161,95 @@ class App {
     }
   }
 
+  // --- Lock Screen & Authentication Engine ---
+  lockApp() {
+    this.isLocked = true;
+    this.enteredPin = '';
+    const lockScreen = document.getElementById('lock-screen');
+    const errorMsg = document.getElementById('lock-error-msg');
+    if (errorMsg) errorMsg.classList.add('hide');
+    this.updatePinDots();
+    if (lockScreen) lockScreen.classList.remove('hide');
+  }
+
+  unlockApp() {
+    this.isLocked = false;
+    this.enteredPin = '';
+    const lockScreen = document.getElementById('lock-screen');
+    if (lockScreen) lockScreen.classList.add('hide');
+    this.showToast('Acesso desbloqueado com sucesso!', 'info');
+  }
+
+  updatePinDots() {
+    const dots = document.querySelectorAll('.pin-dot');
+    dots.forEach((dot, index) => {
+      dot.classList.toggle('filled', index < this.enteredPin.length);
+    });
+  }
+
+  async handlePinInput(digit) {
+    if (!this.isLocked) return;
+
+    const errorMsg = document.getElementById('lock-error-msg');
+    if (errorMsg) errorMsg.classList.add('hide');
+
+    if (digit === 'BACKSPACE') {
+      this.enteredPin = this.enteredPin.slice(0, -1);
+      this.updatePinDots();
+      return;
+    }
+
+    if (this.enteredPin.length < 4 && /^\d$/.test(digit)) {
+      this.enteredPin += digit;
+      this.updatePinDots();
+
+      if (this.enteredPin.length === 4) {
+        const isValid = await store.verifyPin(this.enteredPin);
+        if (isValid) {
+          this.unlockApp();
+        } else {
+          if (errorMsg) errorMsg.classList.remove('hide');
+          const dotsContainer = document.getElementById('pin-dots-container');
+          if (dotsContainer) {
+            dotsContainer.style.animation = 'shakeLock 0.4s ease-in-out';
+            setTimeout(() => {
+              if (dotsContainer) dotsContainer.style.animation = '';
+            }, 450);
+          }
+          setTimeout(() => {
+            this.enteredPin = '';
+            this.updatePinDots();
+          }, 600);
+        }
+      }
+    }
+  }
+
+  bindLockScreen() {
+    const keypad = document.getElementById('pin-keypad-grid');
+    if (keypad) {
+      keypad.addEventListener('click', (e) => {
+        const btn = e.target.closest('.pin-key-btn');
+        if (!btn || !btn.dataset.key) return;
+        this.handlePinInput(btn.dataset.key);
+      });
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (!this.isLocked) return;
+      if (/^\d$/.test(e.key)) {
+        this.handlePinInput(e.key);
+      } else if (e.key === 'Backspace') {
+        this.handlePinInput('BACKSPACE');
+      }
+    });
+  }
+
   bindKeyboardShortcuts() {
     window.addEventListener('keydown', (e) => {
+      // If locked, shortcuts are blocked
+      if (this.isLocked) return;
+
       // Escape closes modals
       if (e.key === 'Escape') {
         this.modals.closeAll();

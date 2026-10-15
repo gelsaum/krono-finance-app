@@ -308,7 +308,14 @@ export class FastPadController {
     const pill = document.getElementById('fastpad-account-name');
     const acc = store.accounts.find(a => a.id === this.selectedAccountId);
     if (pill && acc) {
-      pill.textContent = acc.name;
+      if (acc.type === 'CREDIT_CARD') {
+        const limit = acc.credit_limit || 0;
+        const invoice = acc.invoice_amount || 0;
+        const available = Math.max(0, limit - invoice);
+        pill.textContent = `${acc.name} • Livre: ${formatCurrency(available, acc.default_currency)}`;
+      } else {
+        pill.textContent = acc.name;
+      }
     }
   }
 
