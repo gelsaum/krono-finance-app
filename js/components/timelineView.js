@@ -5,7 +5,7 @@
 
 import { store } from '../store.js';
 import { ratesEngine } from '../rates.js';
-import { formatCurrency, formatTimelineDate, formatTime } from '../utils/formatters.js';
+import { escapeHtml, formatCurrency, formatTimelineDate, formatTime } from '../utils/formatters.js';
 
 export class TimelineView {
   constructor(app) {
@@ -40,16 +40,17 @@ export class TimelineView {
     const listEl = document.getElementById('timeline-groups-list');
     if (listEl) {
       listEl.addEventListener('click', (e) => {
+        const editBtn=e.target.closest('.tx-btn-mini.edit');if(editBtn){this.app.enhancements.openEdit(editBtn.dataset.id);return;}
         const deleteBtn = e.target.closest('.tx-btn-mini.delete');
         if (deleteBtn) {
           e.stopPropagation();
           const txId = deleteBtn.dataset.id;
           if (txId) {
-            store.deleteTransaction(txId);
+            const deleted=store.deleteTransaction(txId);
             this.render();
             if (this.app.dashboardView) this.app.dashboardView.render();
             if (this.app.vaultsView) this.app.vaultsView.render();
-            this.app.showToast('Lançamento excluído com sucesso!', 'info');
+            this.app.showToast('Lançamento excluído.', 'info', {action:()=>store.restoreTransaction(deleted),label:'Desfazer'});
           }
           return;
         }
@@ -59,7 +60,9 @@ export class TimelineView {
           e.stopPropagation();
           const txId = duplicateBtn.dataset.id;
           if (txId) {
-            store.duplicateTransaction(txId);
+            if(!confirm('Duplicar este lançamento com a data de hoje? O saldo será alterado novamente.'))return;
+            try { store.duplicateTransaction(txId); }
+            catch (error) { this.app.showToast(error.message, 'error'); return; }
             this.render();
             if (this.app.dashboardView) this.app.dashboardView.render();
             if (this.app.vaultsView) this.app.vaultsView.render();
@@ -88,7 +91,7 @@ export class TimelineView {
       if (this.searchQuery) {
         const noteMatch = (tx.note || '').toLowerCase().includes(this.searchQuery);
         const tagMatch = (tx.tags || []).some(t => t.toLowerCase().includes(this.searchQuery));
-        const assetMatch = (tx.asset_from || '').toLowerCase().includes(this.searchQuery);
+        const assetMatch = [tx.asset_from, tx.asset_to].some(asset => (asset || '').toLowerCase().includes(this.searchQuery));
         
         const cat = store.categories.find(c => c.id === tx.category_id);
         const catMatch = cat && cat.name.toLowerCase().includes(this.searchQuery);
@@ -116,7 +119,7 @@ export class TimelineView {
 
     // Group transactions by date string
     const groups = {};
-    filtered.forEach(tx => {
+    filtered.sort((a, b) => new Date(b.tx_date) - new Date(a.tx_date)).forEach(tx => {
       const dateKey = new Date(tx.tx_date).toDateString();
       if (!groups[dateKey]) groups[dateKey] = [];
       groups[dateKey].push(tx);
@@ -139,33 +142,34 @@ export class TimelineView {
         const amountSign = isExpense ? '-' : (isIncome ? '+' : '');
         const amountClass = isExpense ? 'is-expense' : (isIncome ? 'is-income' : 'is-swap');
 
-        const primaryAsset = tx.asset_from || tx.asset_to;
-        const primaryAmount = tx.amount_from || tx.amount_to;
+        const primaryAsset = isIncome ? tx.asset_to : tx.asset_from;
+        const primaryAmount = isIncome ? tx.amount_to : tx.amount_from;
         const formattedPrimary = `${amountSign}${formatCurrency(primaryAmount, primaryAsset)}`;
 
         // Equivalent in Base Currency if different
         let baseSubText = '';
         if (primaryAsset !== baseCurr) {
-          const baseVal = ratesEngine.convert(primaryAmount, primaryAsset, baseCurr);
+          const baseVal = store.getTransactionValue(tx, baseCurr);
           baseSubText = `≈ ${formatCurrency(baseVal, baseCurr)}`;
         }
 
+        const details = isSwap ? '<div class="tx-transfer-detail sensitive-data">Recebido: '+escapeHtml(formatCurrency(tx.amount_to,tx.asset_to))+' • Câmbio efetivo: 1 '+escapeHtml(tx.asset_from)+' = '+Number(tx.amount_to/tx.amount_from).toLocaleString('pt-BR',{maximumFractionDigits:8})+' '+escapeHtml(tx.asset_to)+(tx.fee_amount>0?' • Tarifa: '+escapeHtml(formatCurrency(tx.fee_amount,tx.asset_from)):'')+'</div>' : '';
         return `
-          <div class="tx-card" data-type="${tx.tx_type}">
+          <div class="tx-card" data-type="${escapeHtml(tx.tx_type)}">
             <div class="tx-left">
-              <div class="tx-icon-box">${icon}</div>
+              <div class="tx-icon-box">${escapeHtml(icon)}</div>
               <div class="tx-info">
                 <div class="tx-title-row">
-                  <span class="tx-title">${tx.note || (category ? category.name : 'Lançamento')}</span>
-                  ${(tx.tags || []).map(t => `<span class="tx-tag-badge">${t}</span>`).join('')}
+                  <span class="tx-title">${escapeHtml(tx.note || (category ? category.name : 'Lançamento'))}</span>
+                  ${(tx.tags || []).map(t => `<span class="tx-tag-badge">${escapeHtml(t)}</span>`).join('')}
                 </div>
                 <div class="tx-meta-row">
-                  <span class="tx-account-name">${accountName}</span>
+                  <span class="tx-account-name">${escapeHtml(accountName)}</span>
                   <span>•</span>
                   <span>${formatTime(tx.tx_date)}</span>
                   ${tx.exchange_rate_snapshot ? `
                     <span>•</span>
-                    <span class="tx-rate-snapshot-badge" title="Cotação Histórica Gravada">⚡ ${tx.exchange_rate_snapshot}</span>
+                    <span class="tx-rate-snapshot-badge" title="Cotação Histórica Gravada">⚡ ${escapeHtml(tx.exchange_rate_snapshot)}</span>
                   ` : ''}
                 </div>
               </div>
@@ -173,12 +177,16 @@ export class TimelineView {
 
             <div class="tx-right">
               <div class="tx-amount ${amountClass} sensitive-data">${formattedPrimary}</div>
+              ${details}
+              ${tx.installment_count ? `<div class="muted">Parcela ${tx.installment_number}/${tx.installment_count}</div>` : ''}
+              ${tx.adjustment ? '<div class="muted">Ajuste de saldo</div>' : ''}
               ${baseSubText ? `<div class="tx-base-val">${baseSubText}</div>` : ''}
               <div class="tx-actions-hover">
-                <button type="button" class="tx-btn-mini duplicate" data-id="${tx.id}" title="Duplicar lançamento" aria-label="Duplicar">
+                <button type="button" class="tx-btn-mini edit" data-id="${escapeHtml(tx.id)}" title="Editar lançamento" aria-label="Editar">✎</button>
+                <button type="button" class="tx-btn-mini duplicate" data-id="${escapeHtml(tx.id)}" title="Duplicar lançamento" aria-label="Duplicar">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                 </button>
-                <button type="button" class="tx-btn-mini delete" data-id="${tx.id}" title="Excluir lançamento" aria-label="Excluir">
+                <button type="button" class="tx-btn-mini delete" data-id="${escapeHtml(tx.id)}" title="Excluir lançamento" aria-label="Excluir">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                 </button>
               </div>

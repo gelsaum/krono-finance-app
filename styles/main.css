@@ -564,3 +564,38 @@ body.privacy-mode .tx-amount {
   40%, 80% { transform: translateX(8px); }
 }
 
+
+body.privacy-mode :is(.tx-base-val, .token-qty, .token-fiat, .account-balance-sub, #credit-group-total, .card-dates-row, .cat-budget-limit) { filter: blur(8px); user-select: none; }
+
+[hidden] { display: none !important; }
+/* Financial tools keep actions visible and usable on touch screens. */
+.enhance-form { display:flex;flex-direction:column;gap:14px; }
+.enhance-form .form-group { display:flex;flex-direction:column;gap:6px; }
+.enhance-card { margin:20px 0;padding:18px;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:18px; }
+.enhance-card h3 { margin:0 0 14px;font-size:1rem; }
+.enhance-card h4 { margin:14px 0 8px; }
+.enhance-card p { margin:10px 0;line-height:1.5; }
+.enhance-list { display:flex;flex-direction:column;gap:10px;margin-top:16px; }
+.enhance-row { display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid var(--border-subtle);border-radius:12px;padding:12px; }
+.enhance-row p { margin:5px 0; }
+.muted { color:var(--text-muted);font-size:.78rem;line-height:1.5; }
+.report-grid { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px; }
+.report-grid p { font-size:.76rem;color:var(--text-muted); }
+.report-grid strong { display:block;color:var(--text-primary);margin-top:6px;overflow-wrap:anywhere; }
+.account-action { margin-top:12px;min-height:40px;width:100%;font-size:.78rem; }
+.installment-control { display:flex;gap:8px;align-items:center;color:var(--text-muted);font-size:.78rem; }
+.installment-control select { background:var(--bg-surface);color:var(--text-primary);border:1px solid var(--border-subtle);border-radius:8px;padding:8px; }
+.tx-transfer-detail { font-size:.7rem;color:var(--cyan-neon);max-width:210px; }
+.toast-action { border:1px solid currentColor;background:transparent;color:inherit;border-radius:8px;padding:8px;cursor:pointer; }
+.rates-freshness { font-size:.7rem;line-height:1.4;color:var(--text-muted);margin-bottom:12px; }
+.rates-freshness.is-stale { color:var(--amber-neon); }
+.tx-btn-mini { min-width:34px;min-height:34px; }
+body.privacy-mode .report-grid strong, body.privacy-mode #forecast-summary { filter:blur(8px);user-select:none; }
+@media(max-width:420px){.tx-card{align-items:flex-start;gap:8px;}.tx-info{min-width:0;}.tx-title{overflow-wrap:anywhere;}.tx-right{min-width:105px;}.report-grid{grid-template-columns:1fr;}.report-grid strong{display:inline;margin-left:8px;}.enhance-row{flex-wrap:wrap;}}
+.context-row-top { flex-wrap:wrap; }
+.account-pill-btn { max-width:100%; }
+#fastpad-account-name { overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.note-input-wrapper { flex:1 1 160px;min-width:0; }
+.invoice-lines { width:100%;font-size:.78rem;border-top:1px solid var(--border-subtle);padding-top:8px; }
+.invoice-lines summary { cursor:pointer;color:var(--cyan-neon); }
+.enhance-row:has(.invoice-lines) { flex-wrap:wrap; }

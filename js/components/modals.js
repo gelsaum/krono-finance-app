@@ -5,7 +5,7 @@
 
 import { store } from '../store.js';
 import { ratesEngine } from '../rates.js';
-import { formatCurrency, CURRENCY_SYMBOLS, parseFlexibleNumber } from '../utils/formatters.js';
+import { escapeHtml, formatCurrency, parseFlexibleNumber } from '../utils/formatters.js';
 
 /**
  * Attaches real-time thousand separator dots to a text/number input
@@ -57,6 +57,7 @@ export class ModalsController {
   }
 
   openSheet(sheetId) {
+    clearTimeout(this.closeTimer);
     const backdrop = document.getElementById('modal-backdrop');
     document.querySelectorAll('.bottom-sheet').forEach(s => s.classList.add('hide'));
     const target = document.getElementById(sheetId);
@@ -67,9 +68,10 @@ export class ModalsController {
   }
 
   closeAll() {
+    clearTimeout(this.closeTimer);
     const backdrop = document.getElementById('modal-backdrop');
     if (backdrop) backdrop.classList.remove('active');
-    setTimeout(() => {
+    this.closeTimer = setTimeout(() => {
       document.querySelectorAll('.bottom-sheet').forEach(s => s.classList.add('hide'));
     }, 250);
   }
@@ -99,12 +101,12 @@ export class ModalsController {
       }
 
       return `
-        <div class="picker-item-btn" data-id="${acc.id}">
+        <div class="picker-item-btn" data-id="${escapeHtml(acc.id)}">
           <div class="account-icon-wrapper" style="width: 32px; height: 32px; font-size: 0.9rem;">
             ${acc.type === 'CRYPTO_WALLET' ? '🪙' : (acc.type === 'CREDIT_CARD' ? '💳' : '🏦')}
           </div>
           <div>
-            <div style="font-weight: 700; font-size: 0.85rem;">${acc.name}</div>
+            <div style="font-weight: 700; font-size: 0.85rem;">${escapeHtml(acc.name)}</div>
             <div style="font-size: 0.72rem; color: var(--text-muted);">${balanceDisplay}</div>
           </div>
         </div>
@@ -121,7 +123,7 @@ export class ModalsController {
       if (!item) return;
       const acc = store.accounts.find(a => a.id === item.dataset.id);
       if (acc && onSelect) {
-        onSelect(acc);
+        if (onSelect(acc) === false) return;
         this.closeAll();
       }
     };
@@ -146,11 +148,11 @@ export class ModalsController {
     ];
 
     container.innerHTML = currencies.map(c => `
-      <div class="picker-item-btn" data-code="${c.code}">
-        <div style="font-family: var(--font-mono); font-weight: 800; font-size: 1.1rem; color: var(--cyan-neon);">${c.code}</div>
+      <div class="picker-item-btn" data-code="${escapeHtml(c.code)}">
+        <div style="font-family: var(--font-mono); font-weight: 800; font-size: 1.1rem; color: var(--cyan-neon);">${escapeHtml(c.code)}</div>
         <div>
-          <div style="font-weight: 600; font-size: 0.85rem;">${c.name}</div>
-          <div style="font-size: 0.72rem; color: var(--text-muted);">${c.sym}</div>
+          <div style="font-weight: 600; font-size: 0.85rem;">${escapeHtml(c.name)}</div>
+          <div style="font-size: 0.72rem; color: var(--text-muted);">${escapeHtml(c.sym)}</div>
         </div>
       </div>
     `).join('');
@@ -174,7 +176,7 @@ export class ModalsController {
     if (!currSelect) return;
 
     const list = store.getAvailableCurrencies(type);
-    let html = list.map(c => `<option value="${c.symbol}">${c.name}</option>`).join('');
+    let html = list.map(c => `<option value="${escapeHtml(c.symbol)}">${escapeHtml(c.name)}</option>`).join('');
 
     if (type === 'CRYPTO_WALLET') {
       html += `<option value="__NEW_CRYPTO__">➕ Criar Nova Criptomoeda...</option>`;
@@ -195,29 +197,12 @@ export class ModalsController {
     if (!form) return;
 
     const balanceInput = document.getElementById('new-acc-balance');
-    const limitInput = document.getElementById('new-acc-limit');
     const typeSelect = document.getElementById('new-acc-type');
     const currSelect = document.getElementById('new-acc-currency');
     const limitGroup = document.getElementById('new-acc-credit-card-fields');
     const balanceLabel = document.getElementById('new-acc-balance-label');
     const customFields = document.getElementById('new-crypto-custom-fields');
     const btnFetchPrice = document.getElementById('btn-fetch-crypto-price');
-
-    // Apenas o limite do cartão usa o separador de milhar tradicional
-    attachThousandSeparator(limitInput);
-
-    // Saldo inicial aceita dígitos, vírgula e ponto livremente
-    if (balanceInput) {
-      balanceInput.addEventListener('input', (e) => {
-        let val = e.target.value.replace(/[^0-9.,]/g, '');
-        // Garante no máximo um ponto ou vírgula
-        const parts = val.split(/[,.]/);
-        if (parts.length > 2) {
-          val = parts[0] + ',' + parts.slice(1).join('');
-        }
-        e.target.value = val;
-      });
-    }
 
     // Ao mudar o tipo de conta (Banco, Cripto, Cartão, Dinheiro)
     if (typeSelect) {
@@ -267,7 +252,7 @@ export class ModalsController {
         const priceInput = document.getElementById('custom-crypto-price');
         const sym = (symInput?.value || '').trim().toUpperCase();
 
-        if (!sym) {
+        if (!/^[A-Z0-9]{2,20}$/.test(sym)) {
           this.app.showToast('Digite o Ticker da moeda (ex: ADA, NEAR, XRP) para buscar!', 'error');
           return;
         }
@@ -293,24 +278,32 @@ export class ModalsController {
       const name = document.getElementById('new-acc-name').value.trim();
       const type = typeSelect ? typeSelect.value : 'FIAT_BANK';
       let currency = currSelect ? currSelect.value : 'BRL';
-      const balance = parseFlexibleNumber(document.getElementById('new-acc-balance').value);
-      const creditLimit = parseFlexibleNumber(document.getElementById('new-acc-limit')?.value) || 5000000;
+      const balance = parseFlexibleNumber(document.getElementById('new-acc-balance').value, currency);
+      const creditLimit = parseFlexibleNumber(document.getElementById('new-acc-limit')?.value || '5000000');
       const dueDay = parseInt(document.getElementById('new-acc-due-day')?.value, 10) || 15;
       const closingDay = parseInt(document.getElementById('new-acc-closing-day')?.value, 10) || (dueDay > 7 ? dueDay - 7 : 28);
 
       if (!name) return;
+      if (!Number.isFinite(balance) || balance < 0 || !Number.isFinite(creditLimit) || creditLimit <= 0) {
+        this.app.showToast('Informe valores válidos para saldo e limite.', 'error');
+        return;
+      }
 
       // Se for criação de nova criptomoeda
       if (currency === '__NEW_CRYPTO__' || (customFields && !customFields.classList.contains('hide'))) {
         const sym = (document.getElementById('custom-crypto-symbol')?.value || '').trim().toUpperCase();
         const cryptoName = (document.getElementById('custom-crypto-name')?.value || '').trim() || sym;
-        const cryptoPrice = parseFlexibleNumber(document.getElementById('custom-crypto-price')?.value) || 1.0;
+        const cryptoPrice = parseFlexibleNumber(document.getElementById('custom-crypto-price')?.value, 'CRYPTO');
 
-        if (!sym) {
+        if (!/^[A-Z0-9]{2,20}$/.test(sym) || ['USD','BRL','PYG','EUR'].includes(sym)) {
           this.app.showToast('Informe o símbolo/ticker da nova criptomoeda (ex: ADA)!', 'error');
           return;
         }
 
+        if (!Number.isFinite(cryptoPrice) || cryptoPrice <= 0) {
+          this.app.showToast('Informe um preço válido.', 'error');
+          return;
+        }
         store.addCustomCurrency({
           symbol: sym,
           name: cryptoName,
@@ -377,13 +370,13 @@ export class ModalsController {
       const toAccId = toAccSelect?.value;
       const fromAcc = store.accounts.find(a => a.id === fromAccId);
       const toAcc = store.accounts.find(a => a.id === toAccId);
-      const amount = parseFlexibleNumber(fromAmountInput?.value);
+      const amount = parseFlexibleNumber(fromAmountInput?.value, fromAcc?.default_currency);
 
       if (fromAcc && toAcc && amount > 0) {
         const fromAsset = fromAcc.default_currency;
         const toAsset = toAcc.default_currency;
         const converted = ratesEngine.convert(amount, fromAsset, toAsset);
-        if (quoteLabel) quoteLabel.textContent = `1 ${fromAsset} ≈ ${ratesEngine.convert(1, fromAsset, toAsset).toFixed(4)} ${toAsset}`;
+        if (quoteLabel) quoteLabel.textContent = `Estimativa: 1 ${fromAsset} ≈ ${ratesEngine.convert(1, fromAsset, toAsset).toFixed(4)} ${toAsset}. ` + (ratesEngine.lastUpdated ? 'Cotação salva em '+ratesEngine.lastUpdated.toLocaleString('pt-BR') : 'Cotação de referência, ainda sem atualização online.');
         if (toAmountPreview) toAmountPreview.textContent = formatCurrency(converted, toAsset);
       } else {
         if (toAmountPreview) toAmountPreview.textContent = '0';
@@ -392,12 +385,6 @@ export class ModalsController {
 
     if (fromAmountInput) {
       fromAmountInput.addEventListener('input', (e) => {
-        let val = e.target.value.replace(/[^0-9.,]/g, '');
-        const parts = val.split(/[,.]/);
-        if (parts.length > 2) {
-          val = parts[0] + ',' + parts.slice(1).join('');
-        }
-        e.target.value = val;
         updateQuote();
       });
     }
@@ -409,16 +396,19 @@ export class ModalsController {
       e.preventDefault();
       const fromAccId = fromAccSelect.value;
       const toAccId = toAccSelect.value;
-      const amount = parseFlexibleNumber(fromAmountInput.value);
+      const amount = parseFlexibleNumber(fromAmountInput.value, store.accounts.find(a => a.id === fromAccId)?.default_currency);
 
-      if (amount <= 0 || !fromAccId || !toAccId || fromAccId === toAccId) {
+      if (!Number.isFinite(amount) || amount <= 0 || !fromAccId || !toAccId || fromAccId === toAccId) {
         this.app.showToast('Selecione contas distintas e valor válido!', 'error');
         return;
       }
 
       const fromAcc = store.accounts.find(a => a.id === fromAccId);
       const toAcc = store.accounts.find(a => a.id === toAccId);
-      const toAmount = ratesEngine.convert(amount, fromAcc.default_currency, toAcc.default_currency);
+      const manual=document.getElementById('swap-net-received').value.trim();
+      const toAmount = manual ? parseFlexibleNumber(manual,toAcc.default_currency) : ratesEngine.convert(amount, fromAcc.default_currency, toAcc.default_currency);
+      const fee=parseFlexibleNumber(document.getElementById('swap-fee').value,fromAcc.default_currency);
+      if(!Number.isFinite(toAmount)||toAmount<=0||!Number.isFinite(fee)||fee<0){this.app.showToast('Confira valor recebido e tarifa.','error');return;}
 
       store.addTransaction({
         tx_type: 'SWAP',
@@ -428,6 +418,7 @@ export class ModalsController {
         amount_from: amount,
         asset_to: toAcc.default_currency,
         amount_to: toAmount,
+        fee_amount: fee,
         category_id: null,
         tags: ['#swap'],
         note: `Conversão ${fromAcc.default_currency} ➔ ${toAcc.default_currency}`
@@ -444,7 +435,7 @@ export class ModalsController {
 
     if (fromSelect && toSelect) {
       const optionsHtml = store.accounts.map(a => `
-        <option value="${a.id}">${a.name} (${a.default_currency})</option>
+        <option value="${escapeHtml(a.id)}">${escapeHtml(a.name)} (${escapeHtml(a.default_currency)})</option>
       `).join('');
 
       fromSelect.innerHTML = optionsHtml;
@@ -454,6 +445,8 @@ export class ModalsController {
       }
     }
 
+    document.getElementById('swap-net-received').value='';
+    document.getElementById('swap-fee').value='0';
     this.openSheet('swap-sheet');
   }
 
@@ -481,6 +474,7 @@ export class ModalsController {
         if (!file) return;
         const reader = new FileReader();
         reader.onload = (evt) => {
+          try{store.createLocalBackup('Antes de importar');}catch(error){this.app.showToast('Não foi possível criar cópia preventiva. Exporte um arquivo antes de importar.','error');return;}
           const success = store.importJSON(evt.target.result);
           if (success) {
             this.app.showToast('Dados restaurados com sucesso!', 'success');
@@ -498,6 +492,7 @@ export class ModalsController {
       clearAllBtn.addEventListener('click', () => {
         const confirmed = confirm('ATENÇÃO: Deseja realmente ZERAR TODOS OS DADOS?\n\nIsso apagará todas as transações, despesas fixas e contas de demonstração, deixando o app 100% limpo com saldo zero para você cadastrar seus dados reais.');
         if (confirmed) {
+          store.createLocalBackup('Antes de limpar');
           store.clearAllData();
           this.closeAll();
           this.app.showToast('App reiniciado do zero! Pronto para seus dados reais.', 'success');
@@ -509,6 +504,7 @@ export class ModalsController {
     if (resetBtn) {
       resetBtn.addEventListener('click', () => {
         if (confirm('Atenção: Isso redefinirá todas as contas e transações para os dados iniciais de demonstração. Continuar?')) {
+          store.createLocalBackup('Antes dos dados de demonstração');
           store.resetData();
           this.closeAll();
           this.app.showToast('Dados reinicializados para padrão!', 'info');
@@ -625,18 +621,17 @@ export class ModalsController {
     const form = document.getElementById('add-fixed-expense-form');
     if (!form) return;
 
-    // Attach real-time thousand separator dots
-    attachThousandSeparator(document.getElementById('new-fixed-amount'));
+    // Preserve decimal input for currencies such as BRL and USD.
 
     form.addEventListener('submit', (e) => {
       e.preventDefault();
       const name = document.getElementById('new-fixed-name').value;
-      const amount = parseFormattedNumber(document.getElementById('new-fixed-amount').value);
+      const amount = parseFlexibleNumber(document.getElementById('new-fixed-amount').value, document.getElementById('new-fixed-currency').value);
       const currency = document.getElementById('new-fixed-currency').value;
       const dueDay = parseInt(document.getElementById('new-fixed-due-day').value) || 10;
       const categoryId = document.getElementById('new-fixed-category').value;
 
-      if (!name.trim() || amount <= 0) {
+      if (!name.trim() || !Number.isFinite(amount) || amount <= 0) {
         this.app.showToast('Informe nome e valor válido!', 'error');
         return;
       }
@@ -662,7 +657,7 @@ export class ModalsController {
     const catSelect = document.getElementById('new-fixed-category');
     if (catSelect) {
       catSelect.innerHTML = store.categories.map(c => `
-        <option value="${c.id}">${c.icon} ${c.name}</option>
+        <option value="${escapeHtml(c.id)}">${escapeHtml(c.icon)} ${escapeHtml(c.name)}</option>
       `).join('');
     }
 
@@ -726,15 +721,15 @@ export class ModalsController {
     listEl.innerHTML = store.categories.map(c => `
       <div class="category-manage-item">
         <div class="cat-manage-info">
-          <span style="font-size: 1.25rem;">${c.icon}</span>
+          <span style="font-size: 1.25rem;">${escapeHtml(c.icon)}</span>
           <div>
-            <div style="font-weight: 700; color: var(--text-primary); font-size: 0.88rem;">${c.name}</div>
+            <div style="font-weight: 700; color: var(--text-primary); font-size: 0.88rem;">${escapeHtml(c.name)}</div>
             <div style="font-size: 0.72rem; color: var(--text-muted); font-family: var(--font-mono);">
-              Orçamento: ${formatCurrency(c.budget, store.settings.baseCurrency)}
+              Orçamento: ${formatCurrency(ratesEngine.convert(c.budget, c.currency || 'PYG', store.settings.baseCurrency), store.settings.baseCurrency)}
             </div>
           </div>
         </div>
-        <button class="tx-btn-mini delete cat-btn-delete" data-id="${c.id}" title="Excluir Categoria">
+        <button class="tx-btn-mini delete cat-btn-delete" data-id="${escapeHtml(c.id)}" title="Excluir Categoria">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="pointer-events: none;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
         </button>
       </div>
@@ -786,9 +781,12 @@ export class ModalsController {
         e.preventDefault();
         const sym = (document.getElementById('standalone-crypto-symbol')?.value || '').trim().toUpperCase();
         const name = (document.getElementById('standalone-crypto-name')?.value || '').trim() || sym;
-        const price = parseFlexibleNumber(document.getElementById('standalone-crypto-price')?.value) || 1.0;
+        const price = parseFlexibleNumber(document.getElementById('standalone-crypto-price')?.value, 'CRYPTO');
 
-        if (!sym) return;
+        if (!/^[A-Z0-9]{2,20}$/.test(sym) || ['USD','BRL','PYG','EUR'].includes(sym) || !Number.isFinite(price) || price <= 0) {
+          this.app.showToast('Informe ticker e preço válidos.', 'error');
+          return;
+        }
 
         store.addCustomCurrency({ symbol: sym, name, priceUsd: price });
         form.reset();
@@ -827,9 +825,9 @@ export class ModalsController {
         <div style="display: flex; align-items: center; gap: 10px;">
           <span style="font-size: 1.2rem;">🪙</span>
           <div>
-            <div style="font-weight: 700; color: #fff; font-size: 0.88rem;">${item.name} (${item.symbol})</div>
+            <div style="font-weight: 700; color: #fff; font-size: 0.88rem;">${escapeHtml(item.name)} (${escapeHtml(item.symbol)})</div>
             <div style="font-size: 0.72rem; color: var(--text-muted); font-family: var(--font-mono);">
-              1 ${item.symbol} ≈ $${item.priceUsd ? (item.priceUsd >= 1 ? item.priceUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : item.priceUsd.toFixed(6)) : '1.00'} USD
+              1 ${escapeHtml(item.symbol)} ≈ $${item.priceUsd ? (item.priceUsd >= 1 ? item.priceUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : item.priceUsd.toFixed(6)) : '1.00'} USD
             </div>
           </div>
         </div>

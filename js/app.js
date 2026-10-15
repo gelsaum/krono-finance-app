@@ -10,6 +10,7 @@ import { VaultsView } from './components/vaultsView.js';
 import { DashboardView } from './components/dashboardView.js';
 import { TimelineView } from './components/timelineView.js';
 import { ModalsController } from './components/modals.js';
+import { Enhancements } from './components/enhancements.js';
 
 class App {
   constructor() {
@@ -28,6 +29,8 @@ class App {
     this.vaultsView = new VaultsView(this);
     this.dashboardView = new DashboardView(this);
     this.timelineView = new TimelineView(this);
+
+    this.enhancements = new Enhancements(this);
 
     // 3. Bind Global Navigation, Top Bar & Lock Screen
     this.bindNavigation();
@@ -115,18 +118,20 @@ class App {
       } else if (!navigator.onLine) {
         this.showToast('Sem conexão com a internet. Usando cache local.', 'error');
       } else {
-        this.showToast('Cotações já estão atualizadas.', 'info');
+        this.showToast('Não foi possível atualizar agora. Mantidas as últimas cotações disponíveis.', 'error');
       }
     }
   }
 
   refreshCurrentView() {
+    document.body.classList.toggle('privacy-mode', Boolean(store.settings.privacyMode));
     if (this.currentTab === 'fastpad') {
       this.fastPad.render();
     } else if (this.currentTab === 'vaults') {
       this.vaultsView.render();
     } else if (this.currentTab === 'dashboard') {
       this.dashboardView.render();
+      this.enhancements?.renderReports();
     } else if (this.currentTab === 'timeline') {
       this.timelineView.render();
     }
@@ -256,6 +261,8 @@ class App {
         return;
       }
 
+      if (document.getElementById('modal-backdrop')?.classList.contains('active')) return;
+
       // If active tab is Fast Pad and not typing inside an input
       if (this.currentTab === 'fastpad' && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
         if (/^[0-9]$/.test(e.key)) {
@@ -303,7 +310,7 @@ class App {
     this.modals.openCategoryManagerModal();
   }
 
-  showToast(message, type = 'success') {
+  showToast(message, type = 'success', options = {}) {
     const container = document.getElementById('toast-container');
     if (!container) return;
 
@@ -314,7 +321,13 @@ class App {
     if (type === 'error') icon = '✕';
     else if (type === 'info') icon = 'ℹ';
 
-    toast.innerHTML = `<span style="font-weight: 800;">${icon}</span> <span>${message}</span>`;
+    const iconEl = document.createElement('span');
+    iconEl.style.fontWeight = '800';
+    iconEl.textContent = icon;
+    const messageEl = document.createElement('span');
+    messageEl.textContent = message;
+    toast.append(iconEl, messageEl);
+    if(options.action) { const btn=document.createElement('button');btn.type='button';btn.className='toast-action';btn.textContent=options.label||'Desfazer';btn.onclick=()=>{try{options.action();toast.remove()}catch(error){this.showToast(error.message,'error')}};toast.append(btn); }
     container.appendChild(toast);
 
     setTimeout(() => {
@@ -322,7 +335,7 @@ class App {
       toast.style.transform = 'translateY(-10px)';
       toast.style.transition = 'all 0.25s ease';
       setTimeout(() => toast.remove(), 250);
-    }, 2800);
+    }, options.duration || (options.action ? 10000 : 3500));
   }
 }
 

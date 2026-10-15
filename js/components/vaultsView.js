@@ -5,7 +5,7 @@
 
 import { store } from '../store.js';
 import { ratesEngine } from '../rates.js';
-import { formatCurrency, formatPercent } from '../utils/formatters.js';
+import { escapeHtml, formatCurrency } from '../utils/formatters.js';
 
 export class VaultsView {
   constructor(app) {
@@ -119,16 +119,7 @@ export class VaultsView {
     let monthlyIncome = 0;
     let monthlyExpense = 0;
 
-    store.transactions.forEach(tx => {
-      const txDate = new Date(tx.tx_date);
-      if (txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear) {
-        if (tx.tx_type === 'INCOME') {
-          monthlyIncome += ratesEngine.convert(tx.amount_to || tx.amount_from, tx.asset_to || tx.asset_from, baseCurr);
-        } else if (tx.tx_type === 'EXPENSE') {
-          monthlyExpense += ratesEngine.convert(tx.amount_from, tx.asset_from, baseCurr);
-        }
-      }
-    });
+    const monthly=store.monthSummary();monthlyIncome=monthly.income;monthlyExpense=monthly.expense;
 
     const netFlowMonth = monthlyIncome - monthlyExpense;
     const startOfMonthNetWorth = totalPortfolioBase - netFlowMonth;
@@ -185,12 +176,12 @@ export class VaultsView {
       const balanceEntries = Object.entries(acc.balances || {});
 
       return `
-        <div class="account-card" data-id="${acc.id}">
+        <div class="account-card" data-id="${escapeHtml(acc.id)}">
           <div class="card-main-row">
             <div class="account-brand-info">
-              <div class="account-icon-wrapper">${icon}</div>
+              <div class="account-icon-wrapper">${escapeHtml(icon)}</div>
               <div class="account-name-group">
-                <h3>${acc.name}</h3>
+                <h3>${escapeHtml(acc.name)}</h3>
                 <span class="account-type-tag">${acc.type === 'CASH' ? 'Espécie / Físico' : 'Banco Fiduciário'}</span>
               </div>
             </div>
@@ -201,6 +192,7 @@ export class VaultsView {
               ` : ''}
             </div>
           </div>
+          <button type="button" class="btn-secondary account-action" data-reconcile="${escapeHtml(acc.id)}">Conferir saldo</button>
         </div>
       `;
     }).join('');
@@ -219,12 +211,12 @@ export class VaultsView {
       const balanceEntries = Object.entries(acc.balances || {});
 
       return `
-        <div class="account-card" data-id="${acc.id}">
+        <div class="account-card" data-id="${escapeHtml(acc.id)}">
           <div class="card-main-row">
             <div class="account-brand-info">
-              <div class="account-icon-wrapper">${icon}</div>
+              <div class="account-icon-wrapper">${escapeHtml(icon)}</div>
               <div class="account-name-group">
-                <h3>${acc.name}</h3>
+                <h3>${escapeHtml(acc.name)}</h3>
                 <span class="account-type-tag">${isCold ? 'Cold Storage (Hold)' : 'Hot Wallet / Cripto Giro'}</span>
               </div>
             </div>
@@ -238,7 +230,7 @@ export class VaultsView {
               const fiatEquivalent = ratesEngine.convert(amount, token, baseCurr);
               return `
                 <div class="token-pill">
-                  <span class="token-name">${token}</span>
+                  <span class="token-name">${escapeHtml(token)}</span>
                   <span class="token-qty">${formatCurrency(amount, token, false)}</span>
                   <span class="token-fiat">≈ ${formatCurrency(fiatEquivalent, baseCurr)}</span>
                 </div>
@@ -274,13 +266,13 @@ export class VaultsView {
       const datesDisplay = closingText ? `${closingText} • ${dueText}` : dueText;
 
       return `
-        <div class="account-card" data-id="${acc.id}">
+        <div class="account-card" data-id="${escapeHtml(acc.id)}">
           <div class="card-main-row">
             <div class="account-brand-info">
               <div class="account-icon-wrapper" style="background: rgba(244, 63, 94, 0.12); color: var(--rose-neon);">💳</div>
               <div class="account-name-group">
                 <div style="display: flex; align-items: center; gap: 8px;">
-                  <h3 style="margin: 0;">${acc.name}</h3>
+                  <h3 style="margin: 0;">${escapeHtml(acc.name)}</h3>
                   <span class="account-type-tag" style="background: rgba(16, 185, 129, 0.12); color: var(--emerald-neon); border: 1px solid rgba(16, 185, 129, 0.25); font-weight: 700; padding: 2px 7px; border-radius: 6px; font-size: 0.68rem;">
                     ${percentFree}% Livre
                   </span>
@@ -298,10 +290,11 @@ export class VaultsView {
                 ${formatCurrency(available, acc.default_currency)}
               </div>
               <div class="account-balance-sub text-rose sensitive-data" style="font-size: 0.74rem; font-weight: 600; margin-top: 2px;">
-                Fatura Atual: ${formatCurrency(invoice, acc.default_currency)}
+                Dívida total: ${formatCurrency(invoice, acc.default_currency)}
               </div>
             </div>
           </div>
+          <button type="button" class="btn-secondary account-action" data-open-invoices="${escapeHtml(acc.id)}">Ver faturas e registrar pagamento</button>
           <div class="card-limit-progress-bar" style="height: 7px; background: rgba(16, 185, 129, 0.18); border-radius: 999px; overflow: hidden; margin-top: 8px; border: 1px solid rgba(255,255,255,0.06);">
             <div class="card-limit-fill" style="width: ${percentUsed}%; background: linear-gradient(90deg, #f43f5e, #fb7185); height: 100%; border-radius: 999px;"></div>
           </div>
@@ -310,7 +303,7 @@ export class VaultsView {
               <span style="color: var(--text-muted);">Gasto:</span> <strong style="color: ${percentUsed > 80 ? 'var(--rose-neon)' : 'var(--text-secondary)'};">${percentUsed}%</strong> 
               • <span style="color: var(--emerald-neon); font-weight: 600;">Livre: ${formatCurrency(available, acc.default_currency)}</span>
             </span>
-            <span style="color: var(--text-muted); font-weight: 500;">${datesDisplay}</span>
+            <span style="color: var(--text-muted); font-weight: 500;">${escapeHtml(datesDisplay)}</span>
           </div>
         </div>
       `;

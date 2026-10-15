@@ -3,8 +3,11 @@
    Implements Database Schema from Section 5 of the Architecture Document
    ========================================================================== */
 
-import { generateUUID } from './utils/formatters.js';
+import { generateUUID, monthKey } from './utils/formatters.js';
 import { ratesEngine } from './rates.js';
+import { validateBackup } from './utils/backup.js';
+import { enhancedMethods } from './financialStore.js';
+import { invoicePeriod } from './finance.js';
 
 // Predefined Categories
 export const DEFAULT_CATEGORIES = [
@@ -241,10 +244,10 @@ class Store {
         { symbol: 'DOGE', name: 'Dogecoin', type: 'CRYPTO', priceUsd: 0.12 }
       ];
 
-      this.accounts = accountsJson ? JSON.parse(accountsJson) : SEED_ACCOUNTS;
-      this.transactions = txsJson ? JSON.parse(txsJson) : SEED_TRANSACTIONS;
-      this.fixedExpenses = fixedJson ? JSON.parse(fixedJson) : SEED_FIXED_EXPENSES;
-      this.categories = catsJson ? JSON.parse(catsJson) : DEFAULT_CATEGORIES;
+      this.accounts = accountsJson ? JSON.parse(accountsJson) : structuredClone(SEED_ACCOUNTS);
+      this.transactions = txsJson ? JSON.parse(txsJson) : structuredClone(SEED_TRANSACTIONS);
+      this.fixedExpenses = fixedJson ? JSON.parse(fixedJson) : structuredClone(SEED_FIXED_EXPENSES);
+      this.categories = catsJson ? JSON.parse(catsJson) : structuredClone(DEFAULT_CATEGORIES);
 
       this.settings = settingsJson ? JSON.parse(settingsJson) : {
         baseCurrency: 'PYG',
@@ -267,10 +270,10 @@ class Store {
         { symbol: 'XRP', name: 'Ripple', type: 'CRYPTO', priceUsd: 0.54 },
         { symbol: 'DOGE', name: 'Dogecoin', type: 'CRYPTO', priceUsd: 0.12 }
       ];
-      this.accounts = SEED_ACCOUNTS;
-      this.transactions = SEED_TRANSACTIONS;
-      this.fixedExpenses = SEED_FIXED_EXPENSES;
-      this.categories = DEFAULT_CATEGORIES;
+      this.accounts = structuredClone(SEED_ACCOUNTS);
+      this.transactions = structuredClone(SEED_TRANSACTIONS);
+      this.fixedExpenses = structuredClone(SEED_FIXED_EXPENSES);
+      this.categories = structuredClone(DEFAULT_CATEGORIES);
       this.settings = {
         baseCurrency: 'PYG',
         includeCryptoHold: false,
@@ -279,11 +282,41 @@ class Store {
         pinHash: null
       };
     }
-    // Reconciliar cartões de crédito com histórico de transações
+    const complete = localStorage.getItem('krono_state_v2');
+    if(complete) {
+      try { const data=JSON.parse(complete);if(validateBackup(data)) {
+        this.accounts=data.accounts;this.transactions=data.transactions;this.fixedExpenses=data.fixedExpenses||[];
+        this.categories=data.categories||[];this.settings=data.settings||this.settings;this.customCurrencies=data.customCurrencies||this.customCurrencies;
+      }} catch(error){ console.warn('Usando dados anteriores; estado completo inválido.',error); }
+    }
+    // Preserve saved card balances, including legacy opening debt.
     this.reconcileCreditCards();
+    this.rollFixedExpenses();
+    this.initCardCycles();
+    for (const c of this.customCurrencies) {
+      if (!ratesEngine.rates[c.symbol] && c.priceUsd > 0) {
+        ratesEngine.rates[c.symbol] = 1 / c.priceUsd;
+        ratesEngine.cryptoAssets.add(c.symbol);
+      }
+    }
+    if(!complete){try{localStorage.setItem('krono_state_v2',this.exportJSON());}catch(error){console.warn('Armazenamento indisponível.',error);}}
   }
 
   save() {
+    const previous=localStorage.getItem('krono_state_v2');
+    if(previous) {
+      try {const latest=this.getLocalBackups()[0];if(!latest || new Date(latest.at).toDateString()!==new Date().toDateString())this.createLocalBackup('Cópia automática',previous);}catch(error){console.warn('Não foi possível guardar a cópia local.',error);}
+    }
+    try {
+      const json=this.exportJSON();
+      for(;;){try{localStorage.setItem('krono_state_v2',json);break;}catch(error){const backups=this.getLocalBackups();if(!backups.length)throw error;backups.pop();localStorage.setItem('krono_local_backups',JSON.stringify(backups));}}
+    }
+    catch(error){
+      if(previous){const data=JSON.parse(previous);Object.assign(this,{accounts:data.accounts,transactions:data.transactions,fixedExpenses:data.fixedExpenses,categories:data.categories,settings:data.settings,customCurrencies:data.customCurrencies});}
+      this.notify();
+      if(typeof window!=='undefined')window.dispatchEvent(new CustomEvent('krono-storage-error'));
+      throw new Error('Não foi possível salvar. Libere espaço e exporte um backup.');
+    }
     try {
       localStorage.setItem('krono_accounts', JSON.stringify(this.accounts));
       localStorage.setItem('krono_transactions', JSON.stringify(this.transactions));
@@ -309,13 +342,32 @@ class Store {
   }
 
   // --- Transactions API ---
-  addTransaction(txData) {
+  createTransaction(txData) {
+    const type = txData.tx_type || 'EXPENSE';
+    const validSide = (side) => this.accounts.some(a => a.id === txData['account_' + side + '_id'])
+      && /^[A-Z0-9]{2,20}$/.test(txData['asset_' + side] || '')
+      && Number.isFinite(Number(txData['amount_' + side])) && Number(txData['amount_' + side]) > 0;
+    if (!['EXPENSE', 'INCOME', 'SWAP'].includes(type)
+      || (type !== 'INCOME' && !validSide('from'))
+      || (type !== 'EXPENSE' && !validSide('to'))
+      || (type === 'SWAP' && txData.account_from_id === txData.account_to_id)) {
+      throw new Error('Lançamento inválido: confira contas, moedas e valores.');
+    }
+    for (const side of ['from', 'to']) {
+      const account = this.accounts.find(a => a.id === txData['account_' + side + '_id']);
+      if (account?.type === 'CREDIT_CARD' && account.default_currency !== txData['asset_' + side]) {
+        throw new Error('Registre o valor convertido na moeda do cartão: ' + account.default_currency);
+      }
+    }
+    if (txData.fee_amount != null && (!Number.isFinite(Number(txData.fee_amount)) || Number(txData.fee_amount) < 0 || (Number(txData.fee_amount)>0 && type !== 'SWAP'))) throw new Error('Tarifa inválida.');
+    const primaryAsset = type === 'INCOME' ? txData.asset_to : txData.asset_from;
+    const primaryAmount = type === 'INCOME' ? txData.amount_to : txData.amount_from;
     const newTx = {
       id: generateUUID(),
       tx_type: txData.tx_type || 'EXPENSE',
       account_from_id: txData.account_from_id || null,
       account_to_id: txData.account_to_id || null,
-      asset_from: txData.asset_from || 'BRL',
+      asset_from: txData.asset_from || null,
       amount_from: Number(txData.amount_from) || 0,
       asset_to: txData.asset_to || null,
       amount_to: Number(txData.amount_to) || 0,
@@ -324,18 +376,34 @@ class Store {
       note: txData.note || '',
       tx_date: txData.tx_date || new Date().toISOString(),
       sync_status: 'SYNCED',
+      fixed_expense_id: txData.fixed_expense_id || null,
+      fixed_period: txData.fixed_period || null,
+      fee_amount: Number(txData.fee_amount) || 0,
+      fee_base_value: ratesEngine.convert(Number(txData.fee_amount)||0,txData.asset_from,this.settings.baseCurrency),
+      card_payment_period: txData.card_payment_period || null,
+      installment_group: txData.installment_group || null,
+      installment_number: txData.installment_number || null,
+      installment_count: txData.installment_count || null,
+      adjustment: Boolean(txData.adjustment),
+      base_currency: this.settings.baseCurrency,
       base_currency_value: ratesEngine.convert(
-        txData.amount_from || txData.amount_to,
-        txData.asset_from || txData.asset_to,
+        primaryAmount,
+        primaryAsset,
         this.settings.baseCurrency
       ),
       exchange_rate_snapshot: ratesEngine.getSnapshotString(
-        txData.asset_from || txData.asset_to,
+        primaryAsset,
         this.settings.baseCurrency
       )
     };
 
-    // Update account balances
+    if (!Number.isFinite(Date.parse(newTx.tx_date))) throw new Error('Data inválida.');
+    return newTx;
+  }
+
+  addTransaction(txData) {
+    this.initCardCycles();
+    const newTx = this.createTransaction(txData);
     this.applyBalanceChange(newTx);
 
     // Prepend transaction (chronological order)
@@ -345,64 +413,39 @@ class Store {
   }
 
   deleteTransaction(id) {
+    let deleted = null;
     const idx = this.transactions.findIndex(t => t.id === id);
     if (idx !== -1) {
       const tx = this.transactions[idx];
+      deleted = { tx: structuredClone(tx), index: idx };
       // Revert balance change
       this.revertBalanceChange(tx);
       this.transactions.splice(idx, 1);
+      const fixed = this.fixedExpenses.find(f => f.payment_tx_id === id);
+      if (fixed) { fixed.paid = false; fixed.payment_tx_id = null; }
       this.save();
     }
+    return deleted;
   }
 
   duplicateTransaction(id) {
     const orig = this.transactions.find(t => t.id === id);
     if (!orig) return null;
-    const copy = { ...orig, id: generateUUID(), tx_date: new Date().toISOString() };
-    this.applyBalanceChange(copy);
-    this.transactions.unshift(copy);
-    this.save();
-    return copy;
+    return this.addTransaction({ ...orig, fixed_expense_id: null, fixed_period: null, installment_group: null, installment_number: null, installment_count: null, card_payment_period: null, tx_date: new Date().toISOString() });
   }
 
   reconcileCreditCards() {
-    if (!this.accounts || !Array.isArray(this.accounts)) return;
-    this.accounts.forEach(acc => {
-      if (acc.type === 'CREDIT_CARD') {
-        const curr = acc.default_currency || 'BRL';
-        if (!acc.balances) acc.balances = {};
-
-        // Localiza transações vinculadas a este cartão
-        const cardTxs = (this.transactions || []).filter(
-          t => t.account_from_id === acc.id || t.account_to_id === acc.id
-        );
-
-        if (cardTxs.length > 0) {
-          let netDebt = 0;
-          cardTxs.forEach(tx => {
-            if (tx.account_from_id === acc.id && (tx.tx_type === 'EXPENSE' || tx.tx_type === 'SWAP')) {
-              netDebt += Number(tx.amount_from) || 0;
-            } else if (tx.account_to_id === acc.id && (tx.tx_type === 'INCOME' || tx.tx_type === 'SWAP')) {
-              netDebt -= Number(tx.amount_to) || 0;
-            }
-          });
-          const initial = Number(acc.initial_invoice) || 0;
-          const totalInvoice = Math.max(0, initial + netDebt);
-          acc.invoice_amount = totalInvoice;
-          acc.balances[curr] = -totalInvoice;
-        } else {
-          const bal = acc.balances[curr] || 0;
-          if (bal < 0) {
-            acc.invoice_amount = Math.abs(bal);
-          } else if (acc.invoice_amount > 0) {
-            acc.balances[curr] = -acc.invoice_amount;
-          } else {
-            acc.invoice_amount = 0;
-            acc.balances[curr] = 0;
-          }
-        }
+    for (const acc of this.accounts) {
+      if (acc.type !== 'CREDIT_CARD') continue;
+      const curr = acc.default_currency || 'BRL';
+      acc.balances ||= {};
+      // Existing balances are authoritative, including opening debt from old backups.
+      // Rebuilding from an incomplete transaction history loses that opening debt.
+      if (!Number.isFinite(acc.balances[curr])) {
+        acc.balances[curr] = -(Number(acc.invoice_amount) || 0);
       }
-    });
+      this.syncAccountInvoice(acc);
+    }
   }
 
   syncAccountInvoice(acc) {
@@ -414,6 +457,7 @@ class Store {
   }
 
   applyBalanceChange(tx) {
+    if(tx.tx_type==='SWAP' && tx.fee_amount>0) { const acc=this.accounts.find(a=>a.id===tx.account_from_id); if(acc)acc.balances[tx.asset_from]=(acc.balances[tx.asset_from]||0)-tx.fee_amount; }
     if (tx.tx_type === 'EXPENSE' && tx.account_from_id) {
       const acc = this.accounts.find(a => a.id === tx.account_from_id);
       if (acc && acc.balances) {
@@ -453,6 +497,7 @@ class Store {
   }
 
   revertBalanceChange(tx) {
+    if(tx.tx_type==='SWAP' && tx.fee_amount>0) { const acc=this.accounts.find(a=>a.id===tx.account_from_id); if(acc)acc.balances[tx.asset_from]=(acc.balances[tx.asset_from]||0)+tx.fee_amount; }
     if (tx.tx_type === 'EXPENSE' && tx.account_from_id) {
       const acc = this.accounts.find(a => a.id === tx.account_from_id);
       if (acc && acc.balances) {
@@ -489,6 +534,12 @@ class Store {
         }
       }
     }
+  }
+
+  getTransactionValue(tx, currency = this.settings.baseCurrency) {
+    if (tx.base_currency === currency && Number.isFinite(tx.base_currency_value)) return tx.base_currency_value;
+    const income = tx.tx_type === 'INCOME';
+    return ratesEngine.convert(income ? tx.amount_to : tx.amount_from, income ? tx.asset_to : tx.asset_from, currency);
   }
 
   // --- Accounts API ---
@@ -544,10 +595,11 @@ class Store {
 
   addCustomCurrency(crypto) {
     const sym = (crypto.symbol || '').toUpperCase().trim();
-    if (!sym) return null;
+    if (!/^[A-Z0-9]{2,20}$/.test(sym) || ['USD', 'BRL', 'PYG', 'EUR'].includes(sym)) return null;
 
     const existing = this.customCurrencies.find(c => c.symbol === sym);
-    const priceUsd = Number(crypto.priceUsd) || 1.0;
+    const priceUsd = Number(crypto.priceUsd);
+    if (!Number.isFinite(priceUsd) || priceUsd <= 0) return null;
 
     if (existing) {
       existing.name = crypto.name || existing.name;
@@ -581,6 +633,7 @@ class Store {
       currency: item.currency || 'PYG',
       due_day: Number(item.due_day) || 10,
       paid: false,
+      period: monthKey(),
       category_id: item.category_id || 'cat-housing'
     };
     this.fixedExpenses.push(newItem);
@@ -588,12 +641,46 @@ class Store {
     return newItem;
   }
 
-  toggleFixedExpensePaid(id) {
-    const item = this.fixedExpenses.find(f => f.id === id);
-    if (item) {
-      item.paid = !item.paid;
-      this.save();
+  rollFixedExpenses(date = new Date()) {
+    const period = monthKey(date);
+    let changed = false;
+    for (const item of this.fixedExpenses) {
+      if (!item.period) { item.period = period; changed = true; } // Preserve legacy status for this month.
+      if (item.period !== period) {
+        changed = true;
+        item.period = period;
+        item.paid = false;
+        item.payment_tx_id = null;
+      }
     }
+    if (changed) {
+      try { localStorage.setItem('krono_fixed_expenses', JSON.stringify(this.fixedExpenses)); }
+      catch (error) { console.error('Não foi possível salvar o período das despesas fixas.', error); }
+    }
+  }
+
+  toggleFixedExpensePaid(id, accountId = null) {
+    this.rollFixedExpenses();
+    const item = this.fixedExpenses.find(f => f.id === id);
+    if (!item) return;
+    if (item.paid) {
+      if (item.payment_tx_id) this.deleteTransaction(item.payment_tx_id);
+      item.paid = false;
+      item.payment_tx_id = null;
+    } else {
+      const account = this.accounts.find(a => a.id === accountId && a.type !== 'CREDIT_CARD');
+      if (!account) throw new Error('Selecione uma conta para pagar a despesa.');
+      const tx = this.addTransaction({
+        tx_type: 'EXPENSE', account_from_id: account.id,
+        asset_from: account.default_currency,
+        amount_from: ratesEngine.convert(item.amount, item.currency, account.default_currency),
+        category_id: item.category_id, note: item.name,
+        fixed_expense_id: item.id, fixed_period: item.period
+      });
+      item.paid = true;
+      item.payment_tx_id = tx.id;
+    }
+    this.save();
   }
 
   deleteFixedExpense(id) {
@@ -602,6 +689,7 @@ class Store {
   }
 
   getPendingFixedExpensesTotal(targetCurrency = 'PYG') {
+    this.rollFixedExpenses();
     return this.fixedExpenses
       .filter(f => !f.paid)
       .reduce((acc, f) => {
@@ -623,7 +711,8 @@ class Store {
       name: catData.name || 'Nova Categoria',
       icon: catData.icon || '🏷️',
       color: catData.color || '#00f296',
-      budget: Number(catData.budget) || 1000000
+      budget: Number(catData.budget) || 1000000,
+      currency: this.settings.baseCurrency
     };
     this.categories.push(newCat);
     this.save();
@@ -661,7 +750,8 @@ class Store {
 
   exportJSON() {
     return JSON.stringify({
-      version: '1.2',
+      version: '1.4',
+      customCurrencies: this.customCurrencies.map(c => ({ ...c, priceUsd: ratesEngine.getAssetPriceInUSD(c.symbol) })),
       exportedAt: new Date().toISOString(),
       accounts: this.accounts,
       transactions: this.transactions,
@@ -725,12 +815,24 @@ class Store {
   importJSON(jsonString) {
     try {
       const data = JSON.parse(jsonString);
-      if (data.accounts && data.transactions) {
+      if (validateBackup(data)) {
         this.accounts = data.accounts;
         this.transactions = data.transactions;
         if (data.fixedExpenses) this.fixedExpenses = data.fixedExpenses;
         if (data.categories) this.categories = data.categories;
         if (data.settings) this.settings = { ...this.settings, ...data.settings };
+        if (data.customCurrencies) {
+          this.customCurrencies = data.customCurrencies;
+          for (const c of this.customCurrencies) {
+            ratesEngine.cryptoAssets.add(c.symbol);
+            ratesEngine.rates[c.symbol] = 1 / c.priceUsd;
+            ratesEngine.customCryptoPrices[c.symbol] = c.priceUsd;
+          }
+          ratesEngine.saveRates();
+        }
+        this.reconcileCreditCards();
+        this.initCardCycles();
+        this.rollFixedExpenses();
         this.save();
         return true;
       }
@@ -741,4 +843,5 @@ class Store {
   }
 }
 
+Object.assign(Store.prototype, enhancedMethods);
 export const store = new Store();

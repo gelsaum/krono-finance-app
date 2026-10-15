@@ -1,9 +1,10 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
+<!DOCTYPE html><html lang="pt-BR"><head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#07090e">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" type="image/png" href="./icons/icon-192.png">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>KRONO | App Financeiro Zero-Friction (Fiat + Cripto)</title>
@@ -223,7 +224,7 @@
               </div>
               <div class="liquidity-text">
                 <h4>Switch de Liquidez</h4>
-                <p>Ocultar Cripto Cold Storage (Hold) do giro diário</p>
+                <p>Incluir stablecoins de carteiras Hold no saldo livre</p>
               </div>
             </div>
             <label class="switch">
@@ -301,7 +302,7 @@
             </div>
             <div id="safe-spend-amount-val" class="safe-spend-amount sensitive-data">R$ 0,00</div>
             <div class="safe-spend-formula-caption">
-              <span>(Fiat + Cripto Giro) - Despesas Fixas Pendentes</span>
+              <span>(Fiat + Stablecoins) − Fixos Pendentes − Faturas</span>
             </div>
 
             <!-- Formula Breakdown -->
@@ -320,6 +321,10 @@
               </div>
             </div>
 
+            <div class="breakdown-item" style="margin-bottom: 16px;">
+              <span class="breakdown-label">Faturas de cartões</span>
+              <span id="safe-spend-breakdown-cards" class="breakdown-val sensitive-data">0</span>
+            </div>
             <!-- Daily Safe Allowance -->
             <div class="daily-allowance-bar">
               <span class="daily-allowance-title">Limite seguro sugerido:</span>
@@ -391,7 +396,7 @@
           <!-- Live Market Rates Ticker -->
           <div class="market-ticker-section">
             <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); padding-left: 2px;">
-              Cotações de Mercado em Tempo Real
+              Cotações de Mercado Disponíveis
             </div>
             <div id="market-ticker-row" class="ticker-scroll-row">
               <!-- Dynamically populated tickers -->
@@ -554,7 +559,7 @@
 
           <div class="form-group" style="margin-bottom: 10px;">
             <label class="form-label">Limite Total do Cartão</label>
-            <input type="text" inputmode="numeric" id="new-acc-limit" class="form-input" placeholder="Ex: 5.000.000" value="5.000.000">
+            <input type="text" inputmode="decimal" id="new-acc-limit" class="form-input" placeholder="Ex: 5.000.000" value="5.000.000">
           </div>
 
           <div class="form-row">
@@ -588,7 +593,7 @@
         </div>
         <div class="form-group">
           <label class="form-label">Valor a Converter</label>
-          <input type="number" step="any" id="swap-from-amount" class="form-input" placeholder="0.00" required>
+          <input type="text" inputmode="decimal" id="swap-from-amount" class="form-input" placeholder="0.00" required>
         </div>
 
         <div class="swap-route-arrow">↓</div>
@@ -622,20 +627,15 @@
         <button class="sheet-close-btn">&times;</button>
       </div>
       <div style="display: flex; flex-direction: column; gap: 14px;">
-        <p style="font-size: 0.8rem; color: var(--text-muted);">
-          O KRONO funciona em modo <strong>Offline-First</strong> gravando seus lançamentos e carteiras com latência de 4ms no armazenamento local seguro do seu dispositivo.
-        </p>
+      <section style="padding: 0;">
+        <h4>Instalar no celular</h4>
+        <p id="install-app-status" style="font-size: .82rem; color: var(--text-secondary); margin: 10px 0;" role="status"></p>
+        <button id="install-app-btn" type="button" class="btn-primary" hidden>Instalar KRONO</button>
+      </section>
 
-        <!-- Mobile Wi-Fi Testing Card -->
-        <div class="mobile-test-card">
-          <div style="font-weight: 800; font-size: 0.9rem; color: #fff; display: flex; align-items: center; gap: 8px;">
-            <span>📱 Testar no Smartphone (Wi-Fi Local)</span>
-          </div>
-          <p style="font-size: 0.75rem; color: var(--text-muted);">
-            Abra este endereço no navegador do seu celular (conectado ao mesmo Wi-Fi deste computador):
-          </p>
-          <div class="mobile-url-box">http://192.168.1.209:3000/</div>
-        </div>
+        <p style="font-size: 0.8rem; color: var(--text-muted);">
+          Seus lançamentos ficam neste dispositivo. Após a primeira abertura online da versão publicada, o app pode abrir offline. Exporte um backup antes de mudar de endereço ou dispositivo.
+        </p>
 
         <!-- Security & PIN Lock Card -->
         <div class="settings-section-card">
@@ -726,7 +726,7 @@
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Valor</label>
-            <input type="text" inputmode="numeric" id="new-fixed-amount" class="form-input" placeholder="Ex: 2.500.000" required>
+            <input type="text" inputmode="decimal" id="new-fixed-amount" class="form-input" placeholder="Ex: 2.500.000" required>
           </div>
           <div class="form-group">
             <label class="form-label">Moeda</label>
@@ -866,6 +866,7 @@
   </div>
 
   <!-- Main JavaScript Bootstrap -->
+  <script type="module" src="./js/pwa.js"></script>
   <script type="module" src="./js/app.js"></script>
 </body>
 </html>

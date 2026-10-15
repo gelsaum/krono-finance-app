@@ -5,7 +5,7 @@
 
 import { store } from '../store.js';
 import { ratesEngine } from '../rates.js';
-import { formatCurrency, formatTypingNumber } from '../utils/formatters.js';
+import { escapeHtml, formatCurrency, formatTypingNumber } from '../utils/formatters.js';
 import { NLPParser } from '../nlp.js';
 
 /**
@@ -229,6 +229,7 @@ export class FastPadController {
     }
 
     this.renderVisor();
+    this.renderContext();
   }
 
   handleKeyPress(key) {
@@ -306,6 +307,8 @@ export class FastPadController {
 
   renderContext() {
     const pill = document.getElementById('fastpad-account-name');
+    const installmentControl=document.getElementById('installment-control');
+    if(installmentControl) installmentControl.hidden=this.txType!=='EXPENSE'||store.accounts.find(a=>a.id===this.selectedAccountId)?.type!=='CREDIT_CARD';
     const acc = store.accounts.find(a => a.id === this.selectedAccountId);
     if (pill && acc) {
       if (acc.type === 'CREDIT_CARD') {
@@ -324,9 +327,9 @@ export class FastPadController {
     if (!container) return;
 
     const itemsHtml = store.categories.map(cat => `
-      <div class="category-item ${cat.id === this.selectedCategoryId ? 'active' : ''}" data-id="${cat.id}">
-        <span class="cat-icon">${cat.icon}</span>
-        <span>${cat.name}</span>
+      <div class="category-item ${cat.id === this.selectedCategoryId ? 'active' : ''}" data-id="${escapeHtml(cat.id)}">
+        <span class="cat-icon">${escapeHtml(cat.icon)}</span>
+        <span>${escapeHtml(cat.name)}</span>
       </div>
     `).join('');
 
@@ -345,8 +348,16 @@ export class FastPadController {
   }
 
   submitTransaction() {
+    if (this.txType === 'SWAP') {
+      this.app.openSwapModal();
+      return;
+    }
+    if (!store.accounts.some(a => a.id === this.selectedAccountId)) {
+      this.app.showToast('Selecione uma conta válida.', 'error');
+      return;
+    }
     const amount = this.getNumericAmount();
-    if (amount <= 0) {
+    if (!Number.isFinite(amount) || amount <= 0) {
       this.app.showToast('Digite um valor maior que zero!', 'error');
       return;
     }
@@ -364,7 +375,13 @@ export class FastPadController {
       note: this.noteText || (this.txType === 'INCOME' ? 'Receita' : 'Despesa')
     };
 
-    store.addTransaction(txData);
+    try {
+      const count=Number(document.getElementById('fastpad-installments')?.value||1);
+      const card=store.accounts.find(a=>a.id===this.selectedAccountId)?.type==='CREDIT_CARD';
+      if(card&&this.txType==='EXPENSE'&&count>1)store.addInstallments(txData,count);else store.addTransaction(txData);
+      const selector=document.getElementById('fastpad-installments');if(selector)selector.value='1';
+    }
+    catch (error) { this.app.showToast(error.message, 'error'); return; }
 
     // Reset Fast Pad to 0 in < 3 seconds
     this.rawAmountStr = '0';
@@ -465,6 +482,7 @@ export class FastPadController {
   }
 
   render() {
+    if (!store.accounts.some(a => a.id === this.selectedAccountId)) this.initDefaultAccount();
     this.renderCategories();
     this.renderContext();
     this.renderVisor();

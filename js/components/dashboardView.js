@@ -5,7 +5,7 @@
 
 import { store } from '../store.js';
 import { ratesEngine, MARKET_TICKERS } from '../rates.js';
-import { formatCurrency, formatPercent } from '../utils/formatters.js';
+import { escapeHtml, formatCurrency, formatPercent } from '../utils/formatters.js';
 
 export class DashboardView {
   constructor(app) {
@@ -22,8 +22,21 @@ export class DashboardView {
         const checkbox = e.target.closest('.fixed-checkbox');
         if (checkbox) {
           const id = checkbox.dataset.id;
-          store.toggleFixedExpensePaid(id);
-          this.app.showToast('Status da despesa fixa atualizado!', 'info');
+          const item = store.fixedExpenses.find(f => f.id === id);
+          checkbox.checked = Boolean(item?.paid);
+          if (item?.paid) {
+            store.toggleFixedExpensePaid(id);
+            this.app.showToast('Pagamento desfeito.', 'info');
+          } else {
+            this.app.modals.openAccountPicker(account => {
+              if (account.type === 'CREDIT_CARD') {
+                this.app.showToast('Escolha uma conta bancária, carteira ou dinheiro para pagar.', 'error');
+                return false;
+              }
+              store.toggleFixedExpensePaid(id, account.id);
+              this.app.showToast('Pagamento registrado no extrato.', 'success');
+            });
+          }
           return;
         }
 
@@ -77,6 +90,7 @@ export class DashboardView {
   }
 
   render() {
+    store.rollFixedExpenses();
     const baseCurr = store.settings.baseCurrency;
 
     // 1. Calculate Safe-to-Spend
@@ -86,12 +100,13 @@ export class DashboardView {
 
     store.accounts.forEach(acc => {
       if (acc.type === 'FIAT_BANK' || acc.type === 'CASH') {
+        if (acc.include_in_daily_balance === false) return;
         if (acc.balances) {
           Object.entries(acc.balances).forEach(([asset, bal]) => {
             saldoFiat += ratesEngine.convert(bal, asset, baseCurr);
           });
         }
-      } else if (acc.type === 'CRYPTO_WALLET' && acc.include_in_daily_balance) {
+      } else if (acc.type === 'CRYPTO_WALLET' && (acc.include_in_daily_balance || store.settings.includeCryptoHold)) {
         // Only consider stablecoins / liquid giro
         if (acc.balances && acc.balances.USDT) {
           stablecoinsGiro += ratesEngine.convert(acc.balances.USDT, 'USDT', baseCurr);
@@ -100,12 +115,18 @@ export class DashboardView {
     });
 
     const fixedPending = store.getPendingFixedExpensesTotal(baseCurr);
-    const safeToSpend = Math.max(0, (saldoFiat + stablecoinsGiro) - fixedPending);
+    const cardDebt = store.accounts.filter(a => a.type === 'CREDIT_CARD')
+      .reduce((total, a) => total + ratesEngine.convert(a.invoice_amount || 0, a.default_currency, baseCurr), 0);
+    const balanceAfterReservations=(saldoFiat+stablecoinsGiro)-fixedPending-cardDebt;
+    const safeToSpend = Math.max(0,balanceAfterReservations);
+    const shortfall=document.getElementById('safe-spend-shortfall');if(shortfall)shortfall.textContent=balanceAfterReservations<0?'Faltam '+formatCurrency(-balanceAfterReservations,baseCurr)+' para cobrir as reservas.':'';
+    const cardEl = document.getElementById('safe-spend-breakdown-cards');
+    if (cardEl) cardEl.textContent = '-' + formatCurrency(cardDebt, baseCurr);
 
     // Calculate days remaining in the current month
     const now = new Date();
     const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    const daysRemaining = Math.max(1, lastDayOfMonth - now.getDate());
+    const daysRemaining = Math.max(1, lastDayOfMonth - now.getDate() + 1);
     const dailyAllowance = safeToSpend / daysRemaining;
 
     // 2. Render Hero Safe-to-Spend Card
@@ -147,18 +168,8 @@ export class DashboardView {
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
-    store.transactions.forEach(tx => {
-      const txDate = new Date(tx.tx_date);
-      if (txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear) {
-        const valBase = ratesEngine.convert(
-          tx.amount_from || tx.amount_to,
-          tx.asset_from || tx.asset_to,
-          baseCurr
-        );
-        if (tx.tx_type === 'EXPENSE') monthlyExpense += valBase;
-        else if (tx.tx_type === 'INCOME') monthlyIncome += valBase;
-      }
-    });
+    const monthly=store.monthSummary();
+    monthlyIncome=monthly.income;monthlyExpense=monthly.expense;
 
     const savingsRate = monthlyIncome > 0
       ? Math.max(0, Math.min(100, Math.round(((monthlyIncome - monthlyExpense) / monthlyIncome) * 100)))
@@ -189,7 +200,6 @@ export class DashboardView {
     if (!listEl) return;
 
     const pendingTotal = store.getPendingFixedExpensesTotal(baseCurr);
-    const budgetTotal = store.getTotalFixedExpensesBudget(baseCurr);
 
     if (summaryPill) {
       summaryPill.textContent = `Pendente: ${formatCurrency(pendingTotal, baseCurr)}`;
@@ -212,11 +222,11 @@ export class DashboardView {
       return `
         <div class="fixed-expense-item ${item.paid ? 'is-paid' : ''}">
           <div class="fixed-item-left">
-            <input type="checkbox" class="fixed-checkbox" data-id="${item.id}" ${item.paid ? 'checked' : ''} title="Marcar como pago">
+            <input type="checkbox" class="fixed-checkbox" data-id="${escapeHtml(item.id)}" ${item.paid ? 'checked' : ''} title="Marcar como pago">
             <div class="fixed-item-info">
-              <div class="fixed-name">${icon} ${item.name}</div>
+              <div class="fixed-name">${escapeHtml(icon)} ${escapeHtml(item.name)}</div>
               <div class="fixed-meta">
-                <span>Vence dia ${item.due_day}</span>
+                <span>Vence dia ${escapeHtml(item.due_day)}</span>
                 <span>•</span>
                 <span style="color: ${item.paid ? 'var(--emerald-neon)' : 'var(--amber-neon)'}; font-weight: 600;">
                   ${item.paid ? '✓ Pago' : '⏳ Pendente'}
@@ -232,7 +242,7 @@ export class DashboardView {
                 <div style="font-size: 0.68rem; color: var(--text-muted); font-family: var(--font-mono);">≈ ${formatCurrency(baseVal, baseCurr)}</div>
               ` : ''}
             </div>
-            <button class="tx-btn-mini delete fixed-btn-delete" data-id="${item.id}" title="Excluir despesa fixa">
+            <button class="tx-btn-mini delete fixed-btn-delete" data-id="${escapeHtml(item.id)}" title="Excluir despesa fixa">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
             </button>
           </div>
@@ -250,8 +260,10 @@ export class DashboardView {
     store.categories.forEach(c => { categoryTotals[c.id] = 0; });
 
     store.transactions.forEach(tx => {
-      if (tx.tx_type === 'EXPENSE' && tx.category_id) {
-        const valBase = ratesEngine.convert(tx.amount_from, tx.asset_from, baseCurr);
+      const date = new Date(tx.tx_date);
+      const now = new Date();
+      if (!tx.adjustment && tx.tx_type === 'EXPENSE' && tx.category_id && date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()) {
+        const valBase = store.getTransactionValue(tx, baseCurr);
         categoryTotals[tx.category_id] = (categoryTotals[tx.category_id] || 0) + valBase;
       }
     });
@@ -261,7 +273,7 @@ export class DashboardView {
       .map(c => ({
         ...c,
         spent: categoryTotals[c.id] || 0,
-        budgetBase: ratesEngine.convert(c.budget, 'PYG', baseCurr)
+        budgetBase: ratesEngine.convert(c.budget, c.currency || 'PYG', baseCurr)
       }))
       .filter(c => c.spent > 0 || c.budget > 0)
       .sort((a, b) => b.spent - a.spent)
@@ -278,8 +290,8 @@ export class DashboardView {
         <div class="cat-progress-item">
           <div class="cat-info-line">
             <div class="cat-name-icon">
-              <span>${item.icon}</span>
-              <span>${item.name}</span>
+              <span>${escapeHtml(item.icon)}</span>
+              <span>${escapeHtml(item.name)}</span>
             </div>
             <div class="cat-amounts-right">
               <span class="cat-spent sensitive-data">${formatCurrency(item.spent, baseCurr)}</span>
@@ -304,7 +316,7 @@ export class DashboardView {
         <div class="ticker-item">
           <span class="ticker-asset">${item.asset}</span>
           <span class="ticker-price">$${item.priceUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
-          <span class="ticker-change ${isUp ? 'up' : 'down'}">${formatPercent(item.change24h)}</span>
+          <span class="ticker-change ${Number.isFinite(item.change24h) ? (isUp ? 'up' : 'down') : ''}">${Number.isFinite(item.change24h) ? formatPercent(item.change24h) : '24h indisponível'}</span>
         </div>
       `;
     }).join('');

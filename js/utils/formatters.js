@@ -27,18 +27,39 @@ export const CRYPTO_ASSETS = ['BTC', 'ETH', 'SOL', 'USDT', 'BNB', 'ADA', 'XRP', 
  * Robust number parser that accepts comma or dot for decimals
  * e.g. "0,0058" -> 0.0058, "1.500.000,50" -> 1500000.5, "1500" -> 1500
  */
-export function parseFlexibleNumber(val) {
+export function parseFlexibleNumber(val, asset = null) {
   if (val === null || val === undefined || val === '') return 0;
   let str = String(val).trim();
-  if (str.includes(',') && str.includes('.')) {
-    // e.g. 1.500.000,50 -> remove dots, replace comma with dot
-    str = str.replace(/\./g, '').replace(',', '.');
-  } else if (str.includes(',')) {
-    // e.g. 0,0058 or 1500,50
-    str = str.replace(',', '.');
+  if (!/^[+-]?\d+(?:[.,]\d+)*$/.test(str)) return NaN;
+  const dot = str.lastIndexOf('.');
+  const comma = str.lastIndexOf(',');
+  if (dot >= 0 && comma >= 0) {
+    const decimal = dot > comma ? '.' : ',';
+    const grouping = decimal === '.' ? ',' : '.';
+    const [whole, fraction, ...extra] = str.split(decimal);
+    if (extra.length || !new RegExp('^[+-]?\\d{1,3}(?:\\' + grouping + '\\d{3})+$').test(whole)) return NaN;
+    str = whole.split(grouping).join('') + '.' + fraction;
+  } else if (dot >= 0 || comma >= 0) {
+    const separator = dot >= 0 ? '.' : ',';
+    const parts = str.split(separator);
+    const grouped = /^[+-]?[1-9]\d{0,2}$/.test(parts[0]) && parts.slice(1).every(p => /^\d{3}$/.test(p));
+    const cryptoDecimal = asset && !['PYG', 'BRL', 'USD', 'EUR'].includes(asset);
+    if (grouped && (parts.length > 2 || !cryptoDecimal)) str = parts.join('');
+    else if (parts.length === 2) str = parts.join('.');
+    else return NaN;
   }
-  const num = parseFloat(str);
-  return isNaN(num) ? 0 : num;
+  const num = Number(str);
+  return Number.isFinite(num) ? num : NaN;
+}
+
+export function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, char => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[char]);
+}
+
+export function monthKey(date = new Date()) {
+  return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
 }
 
 /**

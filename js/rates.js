@@ -17,12 +17,12 @@ export const DEFAULT_RATES = {
 
 // Market 24h variation & prices
 export let MARKET_TICKERS = [
-  { asset: 'BTC', priceUsd: 64516.20, change24h: 3.42 },
-  { asset: 'ETH', priceUsd: 2597.40, change24h: -1.18 },
-  { asset: 'SOL', priceUsd: 147.10, change24h: 5.84 },
-  { asset: 'USDT', priceUsd: 1.00, change24h: 0.02 },
-  { asset: 'USD/BRL', priceUsd: 5.65, change24h: 0.28 },
-  { asset: 'USD/PYG', priceUsd: 7850.00, change24h: 0.15 }
+  { asset: 'BTC', priceUsd: 64516.20, change24h: null },
+  { asset: 'ETH', priceUsd: 2597.40, change24h: null },
+  { asset: 'SOL', priceUsd: 147.10, change24h: null },
+  { asset: 'USDT', priceUsd: 1.00, change24h: null },
+  { asset: 'USD/BRL', priceUsd: 5.65, change24h: null },
+  { asset: 'USD/PYG', priceUsd: 7850.00, change24h: null }
 ];
 
 class RatesEngine {
@@ -158,12 +158,12 @@ class RatesEngine {
     const usdPyg = this.rates.PYG || 7850;
 
     MARKET_TICKERS = [
-      { asset: 'BTC', priceUsd: btcPrice, change24h: 2.15 },
-      { asset: 'ETH', priceUsd: ethPrice, change24h: 1.40 },
-      { asset: 'SOL', priceUsd: solPrice, change24h: 3.80 },
-      { asset: 'USDT', priceUsd: 1.00, change24h: 0.01 },
-      { asset: 'USD/BRL', priceUsd: usdBrl, change24h: 0.18 },
-      { asset: 'USD/PYG', priceUsd: usdPyg, change24h: 0.12 }
+      { asset: 'BTC', priceUsd: btcPrice, change24h: null },
+      { asset: 'ETH', priceUsd: ethPrice, change24h: null },
+      { asset: 'SOL', priceUsd: solPrice, change24h: null },
+      { asset: 'USDT', priceUsd: 1.00, change24h: null },
+      { asset: 'USD/BRL', priceUsd: usdBrl, change24h: null },
+      { asset: 'USD/PYG', priceUsd: usdPyg, change24h: null }
     ];
   }
 
@@ -245,6 +245,7 @@ class RatesEngine {
         this.saveRates();
         return true;
       }
+      this.isLive = false;
       return false;
     } catch (e) {
       console.warn('[KRONO Rates] Falha ao sincronizar cotações online:', e.message);
@@ -262,7 +263,8 @@ class RatesEngine {
    * @returns {number}
    */
   getAssetPriceInUSD(asset) {
-    if (asset === 'USD' || asset === 'USDT') return 1.0;
+    if (asset === 'USD') return 1.0;
+    if (asset === 'USDT') return 1 / (this.rates.USDT || 1);
     if (asset === 'BRL') return 1 / (this.rates.BRL || 5.65);
     if (asset === 'EUR') return 1 / (this.rates.EUR || 0.92);
     if (asset === 'PYG') return 1 / (this.rates.PYG || 7850);
@@ -289,7 +291,7 @@ class RatesEngine {
 
     // 2. Convert from USD to toAsset
     if (toAsset === 'USD') return amountInUSD;
-    if (toAsset === 'USDT') return amountInUSD / (this.rates.USDT || 1.0);
+    if (toAsset === 'USDT') return amountInUSD * (this.rates.USDT || 1.0);
     if (toAsset === 'BRL') return amountInUSD * (this.rates.BRL || 5.65);
     if (toAsset === 'EUR') return amountInUSD * (this.rates.EUR || 0.92);
     if (toAsset === 'PYG') return amountInUSD * (this.rates.PYG || 7850);
