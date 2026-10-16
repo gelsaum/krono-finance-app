@@ -37,23 +37,23 @@ export const enhancedMethods = {
     const old=this.transactions.find(t=>t.id===id);if(!old)throw new Error('Lançamento não encontrado.');
     if(old.card_payment_period && (data.account_to_id && data.account_to_id!==old.account_to_id))throw new Error('Para mudar o cartão do pagamento, exclua e registre novamente.');
     if(old.adjustment)throw new Error('Para corrigir uma conciliação, exclua o ajuste e concilie novamente.');
-    const updated=this.createTransaction({...old,...data});updated.id=id;
+    const draft={...old,...data};
+    if(old.fixed_expense_id){const item=this.fixedExpenses.find(f=>f.id===old.fixed_expense_id),o=item?.occurrences?.find(o=>o.period===old.fixed_period);if(o){draft.fixed_paid_currency=o.currency;draft.fixed_paid_value=old.asset_from===draft.asset_from?this.fixedPaymentValue(old,o)*draft.amount_from/old.amount_from:ratesEngine.convert(draft.amount_from,draft.asset_from,o.currency);}}
+    const updated=this.createTransaction(draft,id);updated.id=id;
     const income=old.tx_type==='INCOME';const asset=income?'asset_to':'asset_from';const amount=income?'amount_to':'amount_from';
     if(old[asset]===updated[asset] && old.base_currency && Number.isFinite(old.base_currency_value)) {
       updated.base_currency=old.base_currency; updated.base_currency_value=old.base_currency_value*updated[amount]/old[amount];updated.exchange_rate_snapshot=old.exchange_rate_snapshot;
       if(old.fee_amount>0 && Number.isFinite(old.fee_base_value))updated.fee_base_value=old.fee_base_value*updated.fee_amount/old.fee_amount;
     }
     this.revertBalanceChange(old);this.applyBalanceChange(updated);
-    this.transactions[this.transactions.indexOf(old)]=updated;this.save();return updated;
+    this.transactions[this.transactions.indexOf(old)]=updated;this.syncFixedExpenses();this.save();return updated;
   },
   restoreTransaction(deleted) {
     const t=deleted.tx;if(this.transactions.some(row=>row.id===t.id))return;
     if(!this.accounts.some(a=>a.id===(t.account_from_id||t.account_to_id)))throw new Error('A conta original não existe.');
-    const linked=this.fixedExpenses.find(f=>f.id===t.fixed_expense_id&&f.period===t.fixed_period);
-    if(linked?.paid)throw new Error('Esta despesa fixa já tem outro pagamento. Confira o extrato antes de restaurar.');
+    this.validateTransactionRelations(t);
     this.applyBalanceChange(t);this.transactions.splice(Math.min(deleted.index,this.transactions.length),0,t);
-    const fixed=this.fixedExpenses.find(f=>f.id===t.fixed_expense_id && f.period===t.fixed_period);
-    if(fixed && !fixed.paid){fixed.paid=true;fixed.payment_tx_id=t.id;}
+    this.syncFixedExpenses();
     this.save();
   },
   payCardInvoice(id,sourceId,period,amount) {

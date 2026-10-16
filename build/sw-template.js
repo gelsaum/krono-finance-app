@@ -27,3 +27,6 @@ self.addEventListener('fetch', event => {
     return (await cache.match(navigation ? indexURL : request)) || fetch(request);
   })());
 });
+self.addEventListener('message', event => {
+  if (event.data?.type === 'ACTIVATE_UPDATE') event.waitUntil(self.skipWaiting());
+});

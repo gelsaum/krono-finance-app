@@ -11,6 +11,7 @@ import { DashboardView } from './components/dashboardView.js';
 import { TimelineView } from './components/timelineView.js';
 import { ModalsController } from './components/modals.js';
 import { Enhancements } from './components/enhancements.js';
+import { Maintenance } from './components/maintenance.js';
 
 class App {
   constructor() {
@@ -31,6 +32,7 @@ class App {
     this.timelineView = new TimelineView(this);
 
     this.enhancements = new Enhancements(this);
+    this.maintenance = new Maintenance(this);
 
     // 3. Bind Global Navigation, Top Bar & Lock Screen
     this.bindNavigation();

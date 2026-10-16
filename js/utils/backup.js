@@ -10,6 +10,7 @@ export function validateBackup(data) {
   if (!unique(data.accounts) || !unique(data.transactions)) return false;
   if (!data.accounts.every(a => text(a.name) && ['FIAT_BANK','CASH','CRYPTO_WALLET','CREDIT_CARD'].includes(a.type)
     && currency(a.default_currency) && object(a.balances)
+    && (a.archived==null||typeof a.archived==='boolean')
     && Object.entries(a.balances).every(([k,v]) => currency(k) && number(v))
     && (a.invoice_opening == null || number(a.invoice_opening))
     && (a.invoice_opening_period == null || /^\d{4}-(0[1-9]|1[0-2])$/.test(a.invoice_opening_period))
@@ -20,6 +21,7 @@ export function validateBackup(data) {
     && text(t.tx_date) && Number.isFinite(Date.parse(t.tx_date))
     && (t.tx_type === 'INCOME' || validSide(t, 'from'))
     && (t.tx_type === 'EXPENSE' || validSide(t, 'to'))
+    && (t.fixed_paid_value==null||(number(t.fixed_paid_value)&&t.fixed_paid_value>=0&&currency(t.fixed_paid_currency)))
     && (t.fee_amount == null || (number(t.fee_amount) && t.fee_amount>=0))
     && (t.adjustment == null || typeof t.adjustment === 'boolean')
     && (t.installment_count == null || (Number.isInteger(t.installment_count)&&t.installment_count>=1&&t.installment_count<=36&&Number.isInteger(t.installment_number)&&t.installment_number>=1&&t.installment_number<=t.installment_count))
@@ -30,9 +32,14 @@ export function validateBackup(data) {
       && (t['amount_'+side] == null || number(t['amount_'+side])))
     && (t.base_currency == null || currency(t.base_currency))
     && (t.base_currency_value == null || number(t.base_currency_value)))) return false;
-  if (data.fixedExpenses != null && (!Array.isArray(data.fixedExpenses) || !unique(data.fixedExpenses)
-    || !data.fixedExpenses.every(f => text(f.name) && number(f.amount) && f.amount >= 0 && currency(f.currency)
-      && number(f.due_day) && f.due_day >= 1 && f.due_day <= 31 && typeof f.paid === 'boolean'))) return false;
+  const validOccurrence = o => object(o) && /^\d{4}-(0[1-9]|1[0-2])$/.test(o.period)
+    && number(o.amount) && o.amount>=0 && currency(o.currency) && number(o.due_day) && o.due_day>=1 && o.due_day<=31
+    && (o.legacy_paid_amount==null || (number(o.legacy_paid_amount)&&o.legacy_paid_amount>=0));
+  const validFixed = f => (f.archived==null||typeof f.archived==='boolean') && text(f.name) && number(f.amount) && f.amount>=0 && currency(f.currency)
+    && number(f.due_day) && f.due_day>=1 && f.due_day<=31 && typeof f.paid==='boolean'
+    && (f.occurrences==null || (Array.isArray(f.occurrences) && f.occurrences.every(validOccurrence)
+      && new Set(f.occurrences.map(o=>o.period)).size===f.occurrences.length));
+  if(data.fixedExpenses!=null && (!Array.isArray(data.fixedExpenses)||!unique(data.fixedExpenses)||!data.fixedExpenses.every(validFixed)))return false;
   if (data.categories != null && (!Array.isArray(data.categories) || !unique(data.categories)
     || !data.categories.every(c => text(c.name) && text(c.icon) && number(c.budget) && c.budget >= 0
       && (c.currency == null || currency(c.currency))))) return false;

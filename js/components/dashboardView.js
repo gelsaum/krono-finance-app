@@ -22,24 +22,12 @@ export class DashboardView {
         const checkbox = e.target.closest('.fixed-checkbox');
         if (checkbox) {
           const id = checkbox.dataset.id;
-          const item = store.fixedExpenses.find(f => f.id === id);
-          checkbox.checked = Boolean(item?.paid);
-          if (item?.paid) {
-            store.toggleFixedExpensePaid(id);
-            this.app.showToast('Pagamento desfeito.', 'info');
-          } else {
-            this.app.modals.openAccountPicker(account => {
-              if (account.type === 'CREDIT_CARD') {
-                this.app.showToast('Escolha uma conta bancária, carteira ou dinheiro para pagar.', 'error');
-                return false;
-              }
-              store.toggleFixedExpensePaid(id, account.id);
-              this.app.showToast('Pagamento registrado no extrato.', 'success');
-            });
-          }
+          checkbox.checked=!checkbox.checked;
+          this.app.maintenance.openFixedPayment(id,checkbox.dataset.period);
           return;
         }
 
+        const details=e.target.closest('.fixed-details-btn');if(details){this.app.maintenance.openFixedPayment(details.dataset.id,details.dataset.period);return;}
         // Delete fixed expense
         const deleteBtn = e.target.closest('.fixed-btn-delete');
         if (deleteBtn) {
@@ -47,8 +35,9 @@ export class DashboardView {
           e.preventDefault();
           const id = deleteBtn.dataset.id;
           if (id) {
+            if(!confirm('Parar a recorrência? Vencimentos e pagamentos já existentes serão preservados.'))return;
             store.deleteFixedExpense(id);
-            this.app.showToast('Despesa fixa excluída!', 'info');
+            this.app.showToast('Recorrência encerrada; histórico preservado.', 'info');
           }
           return;
         }
@@ -214,22 +203,22 @@ export class DashboardView {
       return;
     }
 
-    listEl.innerHTML = store.fixedExpenses.map(item => {
+    listEl.innerHTML = store.getFixedOccurrences().filter(o=>(!store.fixedExpenses.find(f=>f.id===o.template_id)?.archived&&o.period===store.fixedExpenses.find(f=>f.id===o.template_id)?.period)||!o.paid).map(item => {
       const category = store.categories.find(c => c.id === item.category_id);
       const icon = category ? category.icon : '📌';
-      const baseVal = ratesEngine.convert(item.amount, item.currency, baseCurr);
+      const baseVal = ratesEngine.convert(item.remaining, item.currency, baseCurr);
 
       return `
         <div class="fixed-expense-item ${item.paid ? 'is-paid' : ''}">
           <div class="fixed-item-left">
-            <input type="checkbox" class="fixed-checkbox" data-id="${escapeHtml(item.id)}" ${item.paid ? 'checked' : ''} title="Marcar como pago">
+            <input type="checkbox" class="fixed-checkbox" data-id="${escapeHtml(item.template_id)}" data-period="${escapeHtml(item.period)}" ${item.paid ? 'checked' : ''} title="Marcar como pago">
             <div class="fixed-item-info">
               <div class="fixed-name">${escapeHtml(icon)} ${escapeHtml(item.name)}</div>
               <div class="fixed-meta">
-                <span>Vence dia ${escapeHtml(item.due_day)}</span>
+                <span>${escapeHtml(item.period)} • Vence dia ${escapeHtml(item.due_day)}</span>
                 <span>•</span>
                 <span style="color: ${item.paid ? 'var(--emerald-neon)' : 'var(--amber-neon)'}; font-weight: 600;">
-                  ${item.paid ? '✓ Pago' : '⏳ Pendente'}
+                  ${item.paid ? '✓ Pago' : (item.paidAmount>0?'◐ Parcial':'⏳ Pendente')}
                 </span>
               </div>
             </div>
@@ -237,14 +226,13 @@ export class DashboardView {
 
           <div class="fixed-item-right">
             <div style="text-align: right;">
-              <div class="fixed-amount sensitive-data">${formatCurrency(item.amount, item.currency)}</div>
+              <div class="fixed-amount sensitive-data">${item.paid?'Pago: ': 'Restante: '}${formatCurrency(item.paid?item.amount:item.remaining, item.currency)}</div>
               ${item.currency !== baseCurr ? `
                 <div style="font-size: 0.68rem; color: var(--text-muted); font-family: var(--font-mono);">≈ ${formatCurrency(baseVal, baseCurr)}</div>
               ` : ''}
             </div>
-            <button class="tx-btn-mini delete fixed-btn-delete" data-id="${escapeHtml(item.id)}" title="Excluir despesa fixa">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-            </button>
+            <button class="tx-btn-mini fixed-details-btn" data-id="${escapeHtml(item.template_id)}" data-period="${escapeHtml(item.period)}" title="Ver pagamentos">⋯</button>
+            ${!store.fixedExpenses.find(f=>f.id===item.template_id)?.archived?`<button class="tx-btn-mini fixed-btn-delete" data-id="${escapeHtml(item.template_id)}" title="Parar recorrência" aria-label="Parar recorrência">×</button>`:''}
           </div>
         </div>
       `;

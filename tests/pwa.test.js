@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 function worker() {
   const handlers = {};
+  let activationRequests=0;
   const saved = new Map([['another-app',new Map()],['krono-app:https://test.example/krono/:old',new Map()]]);
   const core = ['index.html','assets/app.js'];
   const context = {
@@ -17,8 +18,9 @@ function worker() {
     fetch:async()=>{throw new Error('offline')}
   };
   const source = readFileSync(new URL('../build/sw-template.js',import.meta.url),'utf8').replace('__CORE_FILES__',JSON.stringify(core)).replace('__VERSION__','test-version');
+  context.self.skipWaiting=()=>{activationRequests++};
   vm.runInNewContext(source,context);
-  return {handlers,saved};
+  return {handlers,saved,activationRequests:()=>activationRequests};
 }
 test('App shell and bundled assets open without network after initial cache',async()=>{
   const {handlers}=worker();let task;handlers.install({waitUntil:p=>task=p});await task;
@@ -35,3 +37,5 @@ test('Service worker leaves API and external requests alone, preserves other app
   handlers.activate({waitUntil:p=>task=p});await task;
   assert.equal(saved.has('another-app'),true);assert.equal(saved.has('krono-app:https://test.example/krono/:old'),false);
 });
+
+test('Update only activates early after the explicit activation message',()=>{const state=worker();state.handlers.message({data:{type:'OTHER'}});assert.equal(state.activationRequests(),0);state.handlers.message({data:{type:'ACTIVATE_UPDATE'},waitUntil(){}});assert.equal(state.activationRequests(),1)});

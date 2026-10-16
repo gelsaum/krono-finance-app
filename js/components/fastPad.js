@@ -74,7 +74,7 @@ export class FastPadController {
   }
 
   initDefaultAccount() {
-    const defaultAcc = store.accounts.find(a => a.default_currency === this.selectedCurrency) || store.accounts[0];
+    const defaultAcc = store.accounts.find(a => !a.archived && a.default_currency === this.selectedCurrency) || store.accounts.find(a=>!a.archived);
     if (defaultAcc) {
       this.selectedAccountId = defaultAcc.id;
     }
@@ -482,7 +482,7 @@ export class FastPadController {
   }
 
   render() {
-    if (!store.accounts.some(a => a.id === this.selectedAccountId)) this.initDefaultAccount();
+    if (!store.accounts.some(a => !a.archived && a.id === this.selectedAccountId)) this.initDefaultAccount();
     this.renderCategories();
     this.renderContext();
     this.renderVisor();

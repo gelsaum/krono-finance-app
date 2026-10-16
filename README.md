@@ -107,3 +107,15 @@ O cache offline guarda apenas o app e seus recursos locais. APIs de cotação e 
 - Safe-Spend: resumo mensal selecionável e comparação com mês anterior, maiores categorias, contas vencidas e próximas em até 14 dias, receita prevista informativa e data da última cotação disponível. Reservas maiores que os fundos mostram a insuficiência.
 - Privacidade: por escolha do usuário, não há login, dados em nuvem ou sincronização. A hospedagem recebe apenas o código do app.
 - Atualizações do app instalado: fechar todas as janelas do KRONO e reabrir permite ativar a versão nova; a atualização nunca recarrega uma tela em edição automaticamente.
+
+## Versão 1.5.0 — vencimentos e manutenção
+
+- Cada despesa recorrente mantém seus vencimentos por mês. Meses não pagos não são substituídos na virada; o saldo livre reserva todos os vencimentos já gerados e ainda pendentes. Valores mensais são congelados no respectivo vencimento.
+- Em Safe-Spend, toque no checkbox ou em Ver pagamentos para pagar parcial ou totalmente, consultar pagamentos e excluir um pagamento com devolução do saldo. Editar um pagamento atualiza o restante; pagar um vencimento antigo não quita o atual. Parar recorrência preserva os vencimentos existentes e deixa de gerar os próximos.
+- O painel de próximos 14 dias projeta também o início do próximo mês, sem antecipar essa projeção no valor reservado hoje.
+- Pagamentos de cartão são validados na criação, edição e restauração. Pagamentos não podem ultrapassar a fatura correspondente; a duplicação é encaminhada ao fluxo de pagamento para evitar quitação do ciclo errado.
+- No extrato, Gerenciar parcelas permite alterar descrição, valor por parcela e data inicial das parcelas de hoje ou futuras, ou cancelar as restantes. Parcelas com data anterior permanecem. O cancelamento cria cópia local preventiva e só deve ser usado quando a cobrança realmente deixou de existir.
+- Configurações → Gerenciar contas e cartões permite editar o nome e limite do cartão, arquivar e reativar. Moeda, tipo e dias de fechamento são preservados. Arquivadas não aparecem para novos lançamentos, mas saldos/dívidas e histórico seguem nos cálculos.
+- Configurações mostra a versão carregada, permite verificar atualização e aplicar uma versão nova com confirmação. Não há recarga automática durante edição.
+- O lembrete de exportação é local: registra quando o download foi iniciado e lembra após 7 dias. O navegador não informa ao app se o arquivo foi guardado pelo usuário.
+- A migração preserva os vencimentos que ainda existem nos dados antigos; não pode reconstruir pendências já sobrescritas por versões anteriores. Pagamentos em moeda diferente sem snapshot compatível usam a cotação disponível na migração, congelada depois disso.

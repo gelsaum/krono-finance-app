@@ -599,3 +599,6 @@ body.privacy-mode .report-grid strong, body.privacy-mode #forecast-summary { fil
 .invoice-lines { width:100%;font-size:.78rem;border-top:1px solid var(--border-subtle);padding-top:8px; }
 .invoice-lines summary { cursor:pointer;color:var(--cyan-neon); }
 .enhance-row:has(.invoice-lines) { flex-wrap:wrap; }
+.update-card { padding:14px;border:1px solid var(--border-subtle);border-radius:12px;display:grid;gap:10px; }
+#fixed-payments-list .enhance-row { margin:10px 0; }
+.tx-actions-hover { flex-wrap:wrap;justify-content:flex-end; }

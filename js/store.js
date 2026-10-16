@@ -7,6 +7,7 @@ import { generateUUID, monthKey } from './utils/formatters.js';
 import { ratesEngine } from './rates.js';
 import { validateBackup } from './utils/backup.js';
 import { enhancedMethods } from './financialStore.js';
+import { billingMethods } from './billing.js';
 import { invoicePeriod } from './finance.js';
 
 // Predefined Categories
@@ -342,7 +343,7 @@ class Store {
   }
 
   // --- Transactions API ---
-  createTransaction(txData) {
+  createTransaction(txData, ignoreId = null) {
     const type = txData.tx_type || 'EXPENSE';
     const validSide = (side) => this.accounts.some(a => a.id === txData['account_' + side + '_id'])
       && /^[A-Z0-9]{2,20}$/.test(txData['asset_' + side] || '')
@@ -355,6 +356,7 @@ class Store {
     }
     for (const side of ['from', 'to']) {
       const account = this.accounts.find(a => a.id === txData['account_' + side + '_id']);
+      if(account?.archived && !ignoreId)throw new Error('Esta conta está arquivada. Reative-a para novos lançamentos.');
       if (account?.type === 'CREDIT_CARD' && account.default_currency !== txData['asset_' + side]) {
         throw new Error('Registre o valor convertido na moeda do cartão: ' + account.default_currency);
       }
@@ -378,6 +380,8 @@ class Store {
       sync_status: 'SYNCED',
       fixed_expense_id: txData.fixed_expense_id || null,
       fixed_period: txData.fixed_period || null,
+      fixed_paid_value: txData.fixed_paid_value ?? null,
+      fixed_paid_currency: txData.fixed_paid_currency || null,
       fee_amount: Number(txData.fee_amount) || 0,
       fee_base_value: ratesEngine.convert(Number(txData.fee_amount)||0,txData.asset_from,this.settings.baseCurrency),
       card_payment_period: txData.card_payment_period || null,
@@ -398,6 +402,7 @@ class Store {
     };
 
     if (!Number.isFinite(Date.parse(newTx.tx_date))) throw new Error('Data inválida.');
+    this.validateTransactionRelations(newTx,ignoreId);
     return newTx;
   }
 
@@ -408,6 +413,7 @@ class Store {
 
     // Prepend transaction (chronological order)
     this.transactions.unshift(newTx);
+    this.syncFixedExpenses();
     this.save();
     return newTx;
   }
@@ -421,8 +427,7 @@ class Store {
       // Revert balance change
       this.revertBalanceChange(tx);
       this.transactions.splice(idx, 1);
-      const fixed = this.fixedExpenses.find(f => f.payment_tx_id === id);
-      if (fixed) { fixed.paid = false; fixed.payment_tx_id = null; }
+      this.syncFixedExpenses();
       this.save();
     }
     return deleted;
@@ -431,7 +436,8 @@ class Store {
   duplicateTransaction(id) {
     const orig = this.transactions.find(t => t.id === id);
     if (!orig) return null;
-    return this.addTransaction({ ...orig, fixed_expense_id: null, fixed_period: null, installment_group: null, installment_number: null, installment_count: null, card_payment_period: null, tx_date: new Date().toISOString() });
+    if(orig.card_payment_period)throw new Error('Registre o pagamento pela tela da fatura para conferir seu saldo pendente.');
+    return this.addTransaction({ ...orig, fixed_expense_id: null, fixed_period: null, fixed_paid_value: null, fixed_paid_currency: null, installment_group: null, installment_number: null, installment_count: null, card_payment_period: null, tx_date: new Date().toISOString() });
   }
 
   reconcileCreditCards() {
@@ -698,7 +704,7 @@ class Store {
   }
 
   getTotalFixedExpensesBudget(targetCurrency = 'PYG') {
-    return this.fixedExpenses
+    return this.fixedExpenses.filter(f=>!f.archived)
       .reduce((acc, f) => {
         return acc + ratesEngine.convert(f.amount, f.currency, targetCurrency);
       }, 0);
@@ -750,7 +756,7 @@ class Store {
 
   exportJSON() {
     return JSON.stringify({
-      version: '1.4',
+      version: '1.5',
       customCurrencies: this.customCurrencies.map(c => ({ ...c, priceUsd: ratesEngine.getAssetPriceInUSD(c.symbol) })),
       exportedAt: new Date().toISOString(),
       accounts: this.accounts,
@@ -843,5 +849,5 @@ class Store {
   }
 }
 
-Object.assign(Store.prototype, enhancedMethods);
+Object.assign(Store.prototype, enhancedMethods, billingMethods);
 export const store = new Store();

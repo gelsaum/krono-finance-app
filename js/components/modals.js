@@ -88,7 +88,7 @@ export class ModalsController {
       </button>
     `;
 
-    container.innerHTML = headerBtnHtml + store.accounts.map(acc => {
+    container.innerHTML = headerBtnHtml + store.accounts.filter(a=>!a.archived).map(acc => {
       let balanceDisplay = '';
       if (acc.type === 'CREDIT_CARD') {
         const limit = acc.credit_limit || 0;
@@ -434,13 +434,13 @@ export class ModalsController {
     const toSelect = document.getElementById('swap-to-account');
 
     if (fromSelect && toSelect) {
-      const optionsHtml = store.accounts.map(a => `
+      const optionsHtml = store.accounts.filter(a=>!a.archived).map(a => `
         <option value="${escapeHtml(a.id)}">${escapeHtml(a.name)} (${escapeHtml(a.default_currency)})</option>
       `).join('');
 
       fromSelect.innerHTML = optionsHtml;
       toSelect.innerHTML = optionsHtml;
-      if (store.accounts.length > 1) {
+      if (store.accounts.filter(a=>!a.archived).length > 1) {
         toSelect.selectedIndex = 1;
       }
     }
@@ -462,6 +462,8 @@ export class ModalsController {
         a.href = url;
         a.download = `krono-finance-backup-${new Date().toISOString().slice(0, 10)}.json`;
         a.click();
+        localStorage.setItem('krono_last_export',new Date().toISOString());
+        window.dispatchEvent(new Event('krono-exported'));
         URL.revokeObjectURL(url);
         this.app.showToast('Backup JSON exportado com sucesso!', 'success');
       });
